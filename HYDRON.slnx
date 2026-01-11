@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/docs/">
+    <File Path="docs/Hydron Valuation.xlsx" />
+    <File Path="docs/Project State.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/HYDRON.Connectivity/HYDRON.Connectivity.csproj" />
+    <Project Path="src/HYDRON.Core/HYDRON.Core.csproj" />
+    <Project Path="src/HYDRON.Cryptography/HYDRON.Cryptography.csproj" />
+    <Project Path="src/HYDRON.Database/HYDRON.Database.csproj" />
+    <Project Path="src/HYDRON.Models/HYDRON.Models.csproj" />
+    <Project Path="src/HYDRON.Network/HYDRON.Network.csproj" />
+    <Project Path="src/HYDRON.Validator/HYDRON.Validator.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HYDRON.Tests/HYDRON.Tests.csproj" />
+  </Folder>
+</Solution>
