@@ -48,6 +48,12 @@ namespace Hydron.Models
 
         public static bool operator >=(Atomos left, Atomos right) => left.CompareTo(right) >= 0;
 
+        public static Atomos operator +(Atomos left, Atomos right) => new(left._atomos + right._atomos);
+
+        public static Atomos operator -(Atomos left, Atomos right) => left._atomos < right._atomos
+            ? throw new InvalidOperationException("Resulting Atomos amount cannot be negative.")
+            : new Atomos(left._atomos - right._atomos);
+
         public string ToString(string? format, IFormatProvider? formatProvider) => _atomos.ToString(format, formatProvider);
 
         public override string ToString() => _atomos.ToString();
