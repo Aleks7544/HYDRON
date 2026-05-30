@@ -6,7 +6,7 @@ namespace HYDRON.Models
     public class Validator : Account
     {
         public Atomos StakedAmount { get; private set; }
-        public ValidatorTier Tier { get; set; }
+        public ValidatorTier Tier { get; private set; }
         public ValidatorStatus Status { get; private set; }
 
         public BigInteger CorrectVotes { get; private set; }
@@ -106,13 +106,15 @@ namespace HYDRON.Models
                 CorrectVotes++;
         }
 
-        public void RecordValidation(Validation validation)
+        public void RecordValidation(Validation validation, Atomos transactionAmount)
         {
             ArgumentNullException.ThrowIfNull(validation);
+            if (transactionAmount <= Atomos.Zero)
+                throw new ArgumentException("Transaction amount must be greater than zero.", nameof(transactionAmount));
 
             _validations.Add(validation);
             TransactionsValidatedCount++;
-            TotalTransactionValue += validation.Transaction.Amount;
+            TotalTransactionValue += transactionAmount;
 
             if (Status == ValidatorStatus.Unreachable)
                 RestoreReachable();

@@ -27,16 +27,16 @@ namespace HYDRON.Models
 
         private readonly List<string> _assignedValidators = [];
         private readonly List<string> _unassignedValidators = [];
-        private readonly List<Validation> _registeredValidations = [];
-        private readonly List<Validation> _unregisteredValidations = [];
+        private readonly List<Guid> _registeredValidationIds = [];
+        private readonly List<Guid> _unregisteredValidationIds = [];
 
         public IReadOnlyList<string> AssignedValidators => _assignedValidators.AsReadOnly();
         public IReadOnlyList<string> UnassignedValidators => _unassignedValidators.AsReadOnly();
-        public IReadOnlyList<Validation> RegisteredValidations => _registeredValidations.AsReadOnly();
-        public IReadOnlyList<Validation> UnregisteredValidations => _unregisteredValidations.AsReadOnly();
+        public IReadOnlyList<Guid> RegisteredValidationIds => _registeredValidationIds.AsReadOnly();
+        public IReadOnlyList<Guid> UnregisteredValidationIds => _unregisteredValidationIds.AsReadOnly();
 
-        public double RequiredSupermajorityValidationsCount =>
-            Math.Ceiling(_assignedValidators.Count * 2.0 / 3.0);
+        public int RequiredSupermajorityValidationsCount =>
+            (int)Math.Ceiling(_assignedValidators.Count * 2.0 / 3.0);
 
         public Transaction(
             string sender,
@@ -171,15 +171,15 @@ namespace HYDRON.Models
 
             ArgumentNullException.ThrowIfNull(validation);
 
-            if (_registeredValidations.Any(v => v.ValidatorAddress == validation.ValidatorAddress))
+            if (_registeredValidationIds.Contains(validation.Id))
                 throw new InvalidOperationException($"Validator {validation.ValidatorAddress} has already submitted a registered validation.");
-            if (_unregisteredValidations.Any(v => v.ValidatorAddress == validation.ValidatorAddress))
+            if (_unregisteredValidationIds.Contains(validation.Id))
                 throw new InvalidOperationException($"Validator {validation.ValidatorAddress} has already submitted an unregistered validation.");
 
             if (_assignedValidators.Contains(validation.ValidatorAddress))
-                _registeredValidations.Add(validation);
+                _registeredValidationIds.Add(validation.Id);
             else
-                _unregisteredValidations.Add(validation);
+                _unregisteredValidationIds.Add(validation.Id);
         }
 
         public void ChangePriority(Priority newPriority)

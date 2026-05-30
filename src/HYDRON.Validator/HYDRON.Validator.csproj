@@ -9,4 +9,8 @@
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\HYDRON.Models\HYDRON.Models.csproj" />
+  </ItemGroup>
+
 </Project>
