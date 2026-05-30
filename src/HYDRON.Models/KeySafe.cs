@@ -13,7 +13,7 @@ namespace HYDRON.Models
         private const string HdHmacKey = "HYDRON";
 
         private readonly byte[] _ed25519PrivateKey;
-        private readonly byte[] _x25519PrivateKey;   
+        private byte[] _x25519PrivateKey;
         private readonly byte[] _hdChainCode;         
         private readonly byte[]? _hdMasterSeed;       
 
@@ -192,13 +192,12 @@ namespace HYDRON.Models
 
             (byte[] newPrivateKey, string newPublicKey) = GenerateX25519KeyPair();
 
-            if (newPrivateKey.Length != _x25519PrivateKey.Length)
-                throw new InvalidOperationException("New stealth key length mismatch.");
+            System.Diagnostics.Debug.Assert(newPrivateKey.Length == 32, "X25519 private key must be 32 bytes.");
 
             CryptographicOperations.ZeroMemory(_x25519PrivateKey);
-            newPrivateKey.CopyTo(_x25519PrivateKey.AsSpan());
-
+            _x25519PrivateKey = newPrivateKey;
             StealthPublicKey = newPublicKey;
+
             return newPublicKey;
         }
 

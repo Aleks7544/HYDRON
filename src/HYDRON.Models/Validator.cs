@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Numerics;
+using System.Text;
 
 namespace HYDRON.Models
 {
@@ -20,8 +21,8 @@ namespace HYDRON.Models
         public BigInteger RejectedTransactionsCount { get; private set; }
         public Atomos TotalTransactionValue { get; private set; }
 
-        private readonly List<Validation> _validations = [];
-        public IReadOnlyList<Validation> Validations => _validations.AsReadOnly();
+        private readonly List<Guid> _validationIds = [];
+        public IReadOnlyList<Guid> ValidationIds => _validationIds.AsReadOnly();
 
         public Atomos TotalRewardsEarned { get; private set; }
         public Atomos TotalPenaltyAmount { get; private set; }
@@ -57,8 +58,8 @@ namespace HYDRON.Models
             if (commissionRate is < 0.0 or > 100.0)
                 throw new ArgumentException("Commission rate must be between 0 and 100.", nameof(commissionRate));
 
-            if (description?.Length > MaxDescriptionLength)
-                throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} characters.", nameof(description));
+            if (description is not null && Encoding.UTF8.GetByteCount(description) > MaxDescriptionLength)
+                throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} UTF-8 bytes.", nameof(description));
 
             if (networkEndpointIPv4 is not null && !IPAddress.TryParse(networkEndpointIPv4, out _))
                 throw new ArgumentException("Invalid IPv4 address format.", nameof(networkEndpointIPv4));
@@ -106,29 +107,20 @@ namespace HYDRON.Models
                 CorrectVotes++;
         }
 
-        public void RecordValidation(Validation validation, Atomos transactionAmount)
+        public void RecordValidation(Guid validationId, Atomos transactionAmount)
         {
-            ArgumentNullException.ThrowIfNull(validation);
             if (transactionAmount <= Atomos.Zero)
                 throw new ArgumentException("Transaction amount must be greater than zero.", nameof(transactionAmount));
 
-            _validations.Add(validation);
+            _validationIds.Add(validationId);
             TransactionsValidatedCount++;
             TotalTransactionValue += transactionAmount;
-
-            if (Status == ValidatorStatus.Unreachable)
-                RestoreReachable();
         }
 
-        public void RecordRejection(Validation validation)
+        public void RecordRejection(Guid validationId)
         {
-            ArgumentNullException.ThrowIfNull(validation);
-
-            _validations.Add(validation);
+            _validationIds.Add(validationId);
             RejectedTransactionsCount++;
-
-            if (Status == ValidatorStatus.Unreachable)
-                RestoreReachable();
         }
 
         public void ApplyPenalty(Atomos penaltyAmount, string evidence)
@@ -165,7 +157,7 @@ namespace HYDRON.Models
                 Status = ValidatorStatus.Unreachable;
         }
 
-        public void RestoreReachable()
+        internal void RestoreReachable()
         {
             if (Status == ValidatorStatus.Unreachable && StakedAmount >= Atomos.One)
                 Status = ValidatorStatus.Active;

@@ -76,7 +76,7 @@ namespace HYDRON.Models
         public ValidatorTier Tier { get; private set; }
         public int TransactionsValidated { get; private set; }
 
-        public Atomos BlockReward { get; private set; }
+        public Atomos BlockRewardAmount { get; private set; }
         public Atomos ValidationReward { get; private set; }
         public Atomos FeeReward { get; private set; }
         public Atomos TotalReward { get; private set; }
@@ -85,7 +85,7 @@ namespace HYDRON.Models
             string validatorAddress,
             ValidatorTier tier,
             int transactionsValidated,
-            Atomos blockReward,
+            Atomos blockRewardAmount,
             Atomos validationReward,
             Atomos feeReward)
         {
@@ -97,10 +97,10 @@ namespace HYDRON.Models
             ValidatorAddress = validatorAddress;
             Tier = tier;
             TransactionsValidated = transactionsValidated;
-            BlockReward = blockReward;
+            BlockRewardAmount = blockRewardAmount;
             ValidationReward = validationReward;
             FeeReward = feeReward;
-            TotalReward = blockReward + validationReward + feeReward;
+            TotalReward = blockRewardAmount + validationReward + feeReward;
         }
 
         public override string ToString() =>

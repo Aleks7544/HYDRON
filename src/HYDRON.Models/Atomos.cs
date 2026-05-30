@@ -106,8 +106,8 @@ namespace HYDRON.Models
             ? throw new ArgumentOutOfRangeException(nameof(value), "Denomination value cannot be negative.")
             : new Atomos((BigInteger)(value * (double)GetFactor(denomination)));
 
-        public decimal ToDenomination(Denominations denomination)
-            => Math.Round((decimal)_atomos / (decimal)GetFactor(denomination), 2, MidpointRounding.ToZero);
+        public double ToDenomination(Denominations denomination)
+            => Math.Round((double)_atomos / (double)GetFactor(denomination), 2, MidpointRounding.ToZero);
 
         public Atomos RemainderAfterDenomination(Denominations denomination)
             => new(_atomos % GetFactor(denomination));

@@ -42,9 +42,6 @@ namespace HYDRON.Models
         {
             ArgumentNullException.ThrowIfNull(transaction);
 
-            if (!transaction.IsSignedBySender())
-                throw new InvalidOperationException("Transaction must be signed by sender before adding to block.");
-
             if (!transaction.IsSignedByReceiver())
                 throw new InvalidOperationException("Transaction requires receiver confirmation that has not been provided.");
 
@@ -82,7 +79,8 @@ namespace HYDRON.Models
             !string.IsNullOrEmpty(Hash) &&
             !string.IsNullOrEmpty(MerkleRoot) &&
             !string.IsNullOrEmpty(StateRoot) &&
-            _transactions.Count > 0;
+            _transactions.Count > 0 &&
+            _transactions.All(t => t.IsFinalized);
 
         public override string ToString() =>
             $"BLOCK (#{BlockNumber} | Hash: {Hash} | Validator: {ValidatorAddress} | Txs: {TransactionCount} | Timestamp: {Timestamp})";

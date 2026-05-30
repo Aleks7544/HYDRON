@@ -20,15 +20,16 @@ namespace HYDRON.Models
         public DateTimeOffset? FinalizedAt { get; private set; }
         public Priority? Priority { get; private set; }
         public BigInteger? TransactionBlockNumber { get; private set; }
-        public string? FirstValidator { get; private set; }
 
         public PrivacyMode PrivacyMode { get; private set; }
         public string? EphemeralPublicKey { get; private set; }
+        public string? FirstValidator => _assignedValidators.Count > 0 ? _assignedValidators[0] : null;
 
         private readonly List<string> _assignedValidators = [];
         private readonly List<string> _unassignedValidators = [];
         private readonly List<Guid> _registeredValidationIds = [];
         private readonly List<Guid> _unregisteredValidationIds = [];
+        private readonly HashSet<string> _validatingAddresses = [];
 
         public IReadOnlyList<string> AssignedValidators => _assignedValidators.AsReadOnly();
         public IReadOnlyList<string> UnassignedValidators => _unassignedValidators.AsReadOnly();
@@ -37,6 +38,33 @@ namespace HYDRON.Models
 
         public int RequiredSupermajorityValidationsCount =>
             (int)Math.Ceiling(_assignedValidators.Count * 2.0 / 3.0);
+
+        private static readonly Dictionary<TransactionStatus, HashSet<TransactionStatus>> ValidTransitions = new()
+        {
+            [TransactionStatus.InitiatedBySender] = [
+                TransactionStatus.AwaitingReceiverAcceptance,
+                TransactionStatus.AbortedBySender,
+                TransactionStatus.PendingValidation
+            ],
+            [TransactionStatus.AwaitingReceiverAcceptance] = [
+                TransactionStatus.PendingValidation,
+                TransactionStatus.AbortedBySender,
+                TransactionStatus.AbortedByReceiver,
+                TransactionStatus.TimedOut
+            ],
+            [TransactionStatus.PendingValidation] = [
+                TransactionStatus.ConsensusReached,
+                TransactionStatus.Rejected
+            ],
+            [TransactionStatus.ConsensusReached] = [
+                TransactionStatus.Settled
+            ],
+            [TransactionStatus.AbortedBySender] = [],
+            [TransactionStatus.AbortedByReceiver] = [],
+            [TransactionStatus.TimedOut] = [],
+            [TransactionStatus.Rejected] = [],
+            [TransactionStatus.Settled] = [],
+        };
 
         public Transaction(
             string sender,
@@ -82,8 +110,6 @@ namespace HYDRON.Models
 
         public Atomos GetTotalCost() => Amount + Fee;
 
-        public bool IsSignedBySender() => !string.IsNullOrEmpty(SenderSignature);
-
         public bool IsSignedByReceiver() =>
             !RequiresReceiverConfirmation || !string.IsNullOrEmpty(ReceiverSignature);
 
@@ -111,12 +137,16 @@ namespace HYDRON.Models
             Hash = hash;
         }
 
-        public void UpdateStatus(TransactionStatus status)
+        public void UpdateStatus(TransactionStatus newStatus)
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot update status of a finalized transaction.");
 
-            Status = status;
+            if (!ValidTransitions.TryGetValue(Status, out HashSet<TransactionStatus>? allowed) ||
+                !allowed.Contains(newStatus))
+                throw new InvalidOperationException($"Invalid status transition from {Status} to {newStatus}.");
+
+            Status = newStatus;
         }
 
         public void AssignBlockNumber(BigInteger blockNumber)
@@ -147,9 +177,6 @@ namespace HYDRON.Models
             if (_assignedValidators.Contains(validatorAddress))
                 throw new InvalidOperationException($"Validator {validatorAddress} is already assigned to this transaction.");
 
-            if (_assignedValidators.Count == 0)
-                FirstValidator = validatorAddress;
-
             _assignedValidators.Add(validatorAddress);
         }
 
@@ -162,6 +189,9 @@ namespace HYDRON.Models
 
             if (!_assignedValidators.Remove(validatorAddress))
                 throw new InvalidOperationException($"Validator {validatorAddress} is not assigned to this transaction.");
+
+            if (FirstValidator == validatorAddress)
+                FirstValidator = _assignedValidators.Count > 0 ? _assignedValidators[0] : null;
         }
 
         public void AddValidation(Validation validation)
@@ -171,10 +201,8 @@ namespace HYDRON.Models
 
             ArgumentNullException.ThrowIfNull(validation);
 
-            if (_registeredValidationIds.Contains(validation.Id))
-                throw new InvalidOperationException($"Validator {validation.ValidatorAddress} has already submitted a registered validation.");
-            if (_unregisteredValidationIds.Contains(validation.Id))
-                throw new InvalidOperationException($"Validator {validation.ValidatorAddress} has already submitted an unregistered validation.");
+            if (!_validatingAddresses.Add(validation.ValidatorAddress))
+                throw new InvalidOperationException($"Validator {validation.ValidatorAddress} has already submitted a validation for this transaction.");
 
             if (_assignedValidators.Contains(validation.ValidatorAddress))
                 _registeredValidationIds.Add(validation.Id);

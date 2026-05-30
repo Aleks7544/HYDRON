@@ -62,7 +62,6 @@
     {
         Public,
         HiddenReceiver,
-        HiddenSender,
         FullyPrivate
     }
 }

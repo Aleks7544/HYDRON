@@ -33,6 +33,8 @@ namespace HYDRON.Validator
                 throw new ArgumentException("Core capacity cannot be negative.", nameof(coreCapacity));
             if (blocksObserved <= 0)
                 throw new ArgumentException("Blocks observed must be greater than zero.", nameof(blocksObserved));
+            if (coreCapacity > validators.Count)
+                throw new ArgumentException($"Core capacity ({coreCapacity}) cannot exceed the total number of validators ({validators.Count}).", nameof(coreCapacity));
 
             List<Validation> validationList = validationsFromLastNBlocks.ToList();
             Dictionary<string, double> speedMap = ComputeAvgSpeedPerValidator(validationList);
