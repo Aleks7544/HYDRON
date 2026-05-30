@@ -1,38 +1,38 @@
 ﻿using System.Numerics;
+using System.Security.Cryptography;
+using System.Text;
 
-namespace Hydron.Models
+namespace HYDRON.Models
 {
-    public enum AccountType
-    {
-        Regular,
-        Validator
-    }
-
     public class Account
     {
-        public string Address { get; set; }
-        public Atomos Balance { get; set; }
-        public ulong Nonce { get; set; }
-        public AccountType Type { get; set; }
-        public string PublicKey { get; set; }
-        public string StateHash { get; set; }
+        public string Address { get; }
+        public string PublicKey { get; }
+        public string StealthPublicKey { get; private set; }
+        public string? Handle { get; private set; }
 
-        public Account(string address, AccountType type, string publicKey)
+        public Atomos Balance { get; private set; }
+        public BigInteger Nonce { get; private set; }
+
+        public string StateHash => ComputeStateHash();
+
+        public Account(string address, string publicKey, string stealthPublicKey)
         {
             if (string.IsNullOrWhiteSpace(address))
                 throw new ArgumentException("Address cannot be null or empty.", nameof(address));
             if (string.IsNullOrWhiteSpace(publicKey))
                 throw new ArgumentException("Public key cannot be null or empty.", nameof(publicKey));
+            if (string.IsNullOrWhiteSpace(stealthPublicKey))
+                throw new ArgumentException("Stealth public key cannot be null or empty.", nameof(stealthPublicKey));
 
             Address = address;
-            Balance = new Atomos(new BigInteger(0));
-            Nonce = 0;
-            Type = type;
             PublicKey = publicKey;
-            StateHash = string.Empty;
+            StealthPublicKey = stealthPublicKey;
+            Balance = Atomos.Zero;
+            Nonce = BigInteger.Zero;
         }
 
-        public void IncrementNonce() => Nonce++;
+        // ── Balance ───────────────────────────────────────────────────────────
 
         public bool TryDeductBalance(Atomos amount)
         {
@@ -45,13 +45,51 @@ namespace Hydron.Models
 
         public void AddBalance(Atomos amount) => Balance += amount;
 
-        public void UpdateStateHash(string newHash)
+        // ── Nonce ─────────────────────────────────────────────────────────────
+
+        public void IncrementNonce() => Nonce++;
+
+        // ── Handle ────────────────────────────────────────────────────────────
+
+        private const int MaxHandleLength = 1000;
+
+        public void UpdateHandle(string? newHandle)
         {
-            if (string.IsNullOrWhiteSpace(newHash))
-                throw new ArgumentException("State hash cannot be null or empty.", nameof(newHash));
-            StateHash = newHash;
+            if (newHandle is not null)
+            {
+                int byteLength = Encoding.UTF8.GetByteCount(newHandle);
+                if (byteLength > MaxHandleLength)
+                    throw new ArgumentException($"Handle cannot exceed {MaxHandleLength} UTF-8 bytes.", nameof(newHandle));
+            }
+
+            Handle = newHandle;
         }
 
-        public override string ToString() => $"Account({Address}, Type: {Type}, Balance: {Balance.ToString()}, Nonce: {Nonce})";
+        // ── Stealth Key Rotation ──────────────────────────────────────────────
+
+        internal void ApplyStealthKeyRotation(string newStealthPublicKey)
+        {
+            if (string.IsNullOrWhiteSpace(newStealthPublicKey))
+                throw new ArgumentException("Stealth public key cannot be null or empty.", nameof(newStealthPublicKey));
+
+            StealthPublicKey = newStealthPublicKey;
+        }
+
+        // ── State Hash ────────────────────────────────────────────────────────
+
+        private string ComputeStateHash()
+        {
+            string raw = $"{Address}|{PublicKey}|{StealthPublicKey}|{Balance}|{Nonce}|{Handle ?? string.Empty}";
+            byte[] bytes = Encoding.UTF8.GetBytes(raw);
+            byte[] hash = SHA256.HashData(bytes);
+            return Convert.ToHexStringLower(hash);
+        }
+
+        // ── Display ───────────────────────────────────────────────────────────
+
+        public override string ToString() =>
+            $"ACCOUNT (Address: {Address} | Balance: {Balance} | Nonce: {Nonce} | " +
+            $"Public Key: {PublicKey} | Stealth Public Key: {StealthPublicKey} | " +
+            $"Handle: {Handle} | State Hash: {StateHash})";
     }
 }

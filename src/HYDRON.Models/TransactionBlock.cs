@@ -1,31 +1,39 @@
 ﻿using System.Numerics;
 
-namespace Hydron.Models
+namespace HYDRON.Models
 {
     public class TransactionBlock
     {
-        public BigInteger BlockNumber { get; set; }
-        public string Hash { get; set; }
-        public string PreviousHash { get; set; }
-        public DateTime Timestamp { get; set; }
-        public string Validator { get; set; }
-        public List<Transaction> Transactions { get; set; }
-        public string MerkleRoot { get; set; }
-        public string StateRoot { get; set; }
+        public BigInteger BlockNumber { get; private set; }
+        public string Hash { get; private set; }
+        public string PreviousHash { get; private set; }
+        public DateTimeOffset Timestamp { get; private set; }
+        public string ValidatorAddress { get; private set; }
+        public string MerkleRoot { get; private set; }
+        public string StateRoot { get; private set; }
 
-        public TransactionBlock(BigInteger blockNumber, string previousHash, string validator)
+        private readonly List<Transaction> _transactions = [];
+        public IReadOnlyList<Transaction> Transactions => _transactions.AsReadOnly();
+
+        public int TransactionCount => _transactions.Count;
+
+        public Atomos GetTotalFees() =>
+            _transactions.Aggregate(Atomos.Zero, (current, tx) => current + tx.Fee);
+
+        public TransactionBlock(BigInteger blockNumber, string previousHash, string validatorAddress)
         {
+            if (blockNumber < BigInteger.Zero)
+                throw new ArgumentException("Block number cannot be negative.", nameof(blockNumber));
             if (string.IsNullOrWhiteSpace(previousHash))
                 throw new ArgumentException("Previous hash cannot be null or empty.", nameof(previousHash));
-            if (string.IsNullOrWhiteSpace(validator))
-                throw new ArgumentException("Validator cannot be null or empty.", nameof(validator));
+            if (string.IsNullOrWhiteSpace(validatorAddress))
+                throw new ArgumentException("Validator address cannot be null or empty.", nameof(validatorAddress));
 
             BlockNumber = blockNumber;
             PreviousHash = previousHash;
-            Validator = validator;
-            Timestamp = DateTime.UtcNow;
+            ValidatorAddress = validatorAddress;
+            Timestamp = DateTimeOffset.UtcNow;
             Hash = string.Empty;
-            Transactions = [];
             MerkleRoot = string.Empty;
             StateRoot = string.Empty;
         }
@@ -34,17 +42,17 @@ namespace Hydron.Models
         {
             ArgumentNullException.ThrowIfNull(transaction);
 
-            if (!transaction.IsSigned())
-                throw new InvalidOperationException("Transaction must be signed before adding to block.");
+            if (!transaction.IsSignedBySender())
+                throw new InvalidOperationException("Transaction must be signed by sender before adding to block.");
 
-            Transactions.Add(transaction);
+            if (!transaction.IsSignedByReceiver())
+                throw new InvalidOperationException("Transaction requires receiver confirmation that has not been provided.");
+
+            if (_transactions.Any(t => t.Hash == transaction.Hash))
+                throw new InvalidOperationException($"Transaction {transaction.Hash} is already in this block.");
+
+            _transactions.Add(transaction);
         }
-
-        public int TransactionCount => Transactions.Count;
-
-        public Atomos GetTotalFees() =>
-            Transactions.Aggregate<Transaction, Atomos>(new Atomos(new BigInteger(0)),
-                (current, tx) => current + tx.Fee);
 
         public void SetHash(string hash)
         {
@@ -70,11 +78,13 @@ namespace Hydron.Models
             StateRoot = stateRoot;
         }
 
-        public bool IsValid() => !string.IsNullOrEmpty(Hash)
-                   && !string.IsNullOrEmpty(MerkleRoot)
-                   && !string.IsNullOrEmpty(StateRoot)
-                   && Transactions.Count > 0;
+        public bool IsValid() =>
+            !string.IsNullOrEmpty(Hash) &&
+            !string.IsNullOrEmpty(MerkleRoot) &&
+            !string.IsNullOrEmpty(StateRoot) &&
+            _transactions.Count > 0;
 
-        public override string ToString() => $"Block #{BlockNumber} | Hash: {Hash[..Math.Min(8, Hash.Length)]} | Txs: {Transactions.Count}";
+        public override string ToString() =>
+            $"BLOCK (#{BlockNumber} | Hash: {Hash} | Validator: {ValidatorAddress} | Txs: {TransactionCount} | Timestamp: {Timestamp})";
     }
 }
