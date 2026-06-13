@@ -48,7 +48,7 @@ namespace HYDRON.Models
             Nonce = BigInteger.Zero;
         }
 
-        // ── Balance ───────────────────────────────────────────────────────────
+        // ── Balance ───────────────────────────────────────────────────────────────────────
 
         public bool TryDeductBalance(Atomos amount)
         {
@@ -64,7 +64,7 @@ namespace HYDRON.Models
             InvalidateStateHash();
         }
 
-        // ── Nonce ─────────────────────────────────────────────────────────────
+        // ── Nonce ────────────────────────────────────────────────────────────────────────
 
         public void IncrementNonce()
         {
@@ -72,7 +72,7 @@ namespace HYDRON.Models
             InvalidateStateHash();
         }
 
-        // ── Handle ────────────────────────────────────────────────────────────
+        // ── Handle ────────────────────────────────────────────────────────────────────────
 
         private const int MaxHandleLength = 1000;
 
@@ -80,6 +80,9 @@ namespace HYDRON.Models
         {
             if (newHandle is not null)
             {
+                if (string.IsNullOrWhiteSpace(newHandle))
+                    throw new ArgumentException("Handle cannot be whitespace-only.", nameof(newHandle));
+
                 int byteLength = Encoding.UTF8.GetByteCount(newHandle);
                 if (byteLength > MaxHandleLength)
                     throw new ArgumentException($"Handle cannot exceed {MaxHandleLength} UTF-8 bytes.", nameof(newHandle));
@@ -88,7 +91,7 @@ namespace HYDRON.Models
             InvalidateStateHash();
         }
 
-        // ── Stealth Key Rotation ──────────────────────────────────────────────
+        // ── Stealth Key Rotation ──────────────────────────────────────────────────────
 
         internal void ApplyStealthKeyRotation(string newStealthPublicKey)
         {
@@ -99,14 +102,18 @@ namespace HYDRON.Models
             InvalidateStateHash();
         }
 
-        // ── State Hash ────────────────────────────────────────────────────────
+        // ── State Hash ────────────────────────────────────────────────────────────────────
 
         private string ComputeStateHash()
         {
-            string raw = $"{Address}|{PublicKey}|{StealthPublicKey}|{Balance}|{Nonce}|{Handle ?? string.Empty}";
+            // Use NUL (\0) as the field separator because it cannot appear in any of the
+            // constituent values (hex address, base-64 keys, numeric balance/nonce, or the
+            // handle — which is validated to be non-whitespace when set). Using '|' was
+            // unsafe because a handle containing '|' would produce the same raw string as
+            // a different (address, handle) pair, causing hash collisions.
+            string raw = $"{Address}\0{PublicKey}\0{StealthPublicKey}\0{Balance}\0{Nonce}\0{Handle ?? string.Empty}";
             byte[] bytes = Encoding.UTF8.GetBytes(raw);
             byte[] hash = SHA256.HashData(bytes);
-
             return Convert.ToHexStringLower(hash);
         }
 
@@ -123,7 +130,7 @@ namespace HYDRON.Models
             }
         }
 
-        // ── Display ───────────────────────────────────────────────────────────
+        // ── Display ──────────────────────────────────────────────────────────────────────
 
         public override string ToString() =>
             $"ACCOUNT (Address: {Address} | Balance: {Balance} | Nonce: {Nonce} | Handle: {Handle ?? "N/A"})";

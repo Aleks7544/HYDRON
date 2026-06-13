@@ -44,24 +44,36 @@
             ValidationSignature = signature;
         }
 
+        /// <summary>
+        /// Confirms the validation. The validation must be signed first via
+        /// <see cref="SignValidation"/> — an unsigned confirmation has no cryptographic weight.
+        /// </summary>
         public void Confirm(double validationSpeedMs)
         {
+            if (ValidationSignature is null)
+                throw new InvalidOperationException("Validation must be signed before it can be confirmed.");
             if (Status != ValidationStatus.Pending)
                 throw new InvalidOperationException($"Cannot confirm validation with status {Status}.");
-            if (validationSpeedMs < 0)
-                throw new ArgumentException("Validation speed cannot be negative.", nameof(validationSpeedMs));
+            if (validationSpeedMs <= 0)
+                throw new ArgumentException("Validation speed must be greater than zero.", nameof(validationSpeedMs));
 
             Status = ValidationStatus.Confirmed;
             ValidationSpeedMs = validationSpeedMs;
             ValidatedAt = DateTimeOffset.UtcNow;
         }
 
+        /// <summary>
+        /// Rejects the validation. The validation must be signed first via
+        /// <see cref="SignValidation"/> — an unsigned rejection has no cryptographic weight.
+        /// </summary>
         public void Reject(double validationSpeedMs)
         {
+            if (ValidationSignature is null)
+                throw new InvalidOperationException("Validation must be signed before it can be rejected.");
             if (Status != ValidationStatus.Pending)
                 throw new InvalidOperationException($"Cannot reject validation with status {Status}.");
-            if (validationSpeedMs < 0)
-                throw new ArgumentException("Validation speed cannot be negative.", nameof(validationSpeedMs));
+            if (validationSpeedMs <= 0)
+                throw new ArgumentException("Validation speed must be greater than zero.", nameof(validationSpeedMs));
 
             Status = ValidationStatus.Rejected;
             ValidationSpeedMs = validationSpeedMs;
@@ -84,6 +96,8 @@
                 throw new InvalidOperationException("Only confirmed validations can be penalized.");
             if (IsPenalized)
                 throw new InvalidOperationException("Validation already penalized.");
+            if (penaltyAmount <= Atomos.Zero)
+                throw new ArgumentException("Penalty amount must be greater than zero.", nameof(penaltyAmount));
             if (string.IsNullOrWhiteSpace(evidence))
                 throw new ArgumentException("Penalty evidence cannot be null or empty.", nameof(evidence));
 

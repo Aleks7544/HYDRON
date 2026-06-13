@@ -4,6 +4,15 @@ namespace HYDRON.Models
 {
     public class Transaction
     {
+        private static readonly HashSet<TransactionStatus> TerminalStatuses =
+        [
+            TransactionStatus.AbortedBySender,
+            TransactionStatus.AbortedByReceiver,
+            TransactionStatus.TimedOut,
+            TransactionStatus.Rejected,
+            TransactionStatus.Settled
+        ];
+
         public string Sender { get; private set; }
         public string Receiver { get; private set; }
         public Atomos Amount { get; private set; }
@@ -37,8 +46,22 @@ namespace HYDRON.Models
         public IReadOnlyList<Guid> RegisteredValidationIds => _registeredValidationIds.AsReadOnly();
         public IReadOnlyList<Guid> UnregisteredValidationIds => _unregisteredValidationIds.AsReadOnly();
 
-        public int RequiredSupermajorityValidationsCount =>
-            (int)Math.Ceiling((_frozenValidatorCount ?? _assignedValidators.Count) * 2.0 / 3.0);
+        /// <summary>
+        /// Returns the supermajority threshold (ceil(n * 2/3)) based on the frozen validator
+        /// count set when the transaction entered <see cref="TransactionStatus.PendingValidation"/>.
+        /// Before that transition the count is based on currently assigned validators.
+        /// Returns <see cref="int.MaxValue"/> when no validators are assigned and the transaction
+        /// has not yet been frozen, preventing accidental auto-consensus.
+        /// </summary>
+        public int RequiredSupermajorityValidationsCount
+        {
+            get
+            {
+                int count = _frozenValidatorCount ?? _assignedValidators.Count;
+                if (count == 0) return int.MaxValue;
+                return (int)Math.Ceiling(count * 2.0 / 3.0);
+            }
+        }
 
         private static readonly Dictionary<TransactionStatus, HashSet<TransactionStatus>> ValidTransitions = new()
         {
@@ -161,6 +184,9 @@ namespace HYDRON.Models
                 throw new InvalidOperationException("Cannot assign a block number to a finalized transaction.");
             if (blockNumber < BigInteger.Zero)
                 throw new ArgumentException("Block number cannot be negative.", nameof(blockNumber));
+            if (Status != TransactionStatus.ConsensusReached && Status != TransactionStatus.Settled)
+                throw new InvalidOperationException(
+                    $"Block number can only be assigned when status is {TransactionStatus.ConsensusReached} or {TransactionStatus.Settled}. Current status: {Status}.");
 
             TransactionBlockNumber = blockNumber;
         }
@@ -178,6 +204,9 @@ namespace HYDRON.Models
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot add a validator to a finalized transaction.");
+            if (Status >= TransactionStatus.PendingValidation)
+                throw new InvalidOperationException(
+                    $"Validators cannot be added after the transaction has entered {TransactionStatus.PendingValidation}.");
             if (string.IsNullOrWhiteSpace(validatorAddress))
                 throw new ArgumentException("Validator address cannot be null or empty.", nameof(validatorAddress));
             if (_assignedValidators.Contains(validatorAddress))
@@ -190,6 +219,9 @@ namespace HYDRON.Models
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot remove a validator from a finalized transaction.");
+            if (Status >= TransactionStatus.PendingValidation)
+                throw new InvalidOperationException(
+                    $"Validators cannot be removed after the transaction has entered {TransactionStatus.PendingValidation}.");
             if (string.IsNullOrWhiteSpace(validatorAddress))
                 throw new ArgumentException("Validator address cannot be null or empty.", nameof(validatorAddress));
 
@@ -201,6 +233,9 @@ namespace HYDRON.Models
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot add a validation to a finalized transaction.");
+            if (Status != TransactionStatus.PendingValidation)
+                throw new InvalidOperationException(
+                    $"Validations can only be added when status is {TransactionStatus.PendingValidation}. Current status: {Status}.");
 
             ArgumentNullException.ThrowIfNull(validation);
 
@@ -218,24 +253,43 @@ namespace HYDRON.Models
             }
         }
 
+        /// <summary>
+        /// Changes the transaction's priority. Only allowed while the transaction is in
+        /// <see cref="TransactionStatus.InitiatedBySender"/> or
+        /// <see cref="TransactionStatus.AwaitingReceiverAcceptance"/> — after that, the
+        /// validator set has already been selected and the priority cannot be retroactively changed.
+        /// </summary>
         public void ChangePriority(Priority newPriority)
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot change priority of a finalized transaction.");
+            if (Status > TransactionStatus.AwaitingReceiverAcceptance)
+                throw new InvalidOperationException(
+                    $"Priority can only be changed before the transaction enters {TransactionStatus.PendingValidation}. Current status: {Status}.");
 
             Priority = newPriority;
         }
 
+        /// <summary>
+        /// Marks the transaction as finalized (immutable). The transaction must be in a
+        /// terminal status (<see cref="TransactionStatus.Settled"/>,
+        /// <see cref="TransactionStatus.Rejected"/>, <see cref="TransactionStatus.AbortedBySender"/>,
+        /// <see cref="TransactionStatus.AbortedByReceiver"/>, or
+        /// <see cref="TransactionStatus.TimedOut"/>) before it can be finalized.
+        /// </summary>
         public void FinalizeTransaction()
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Transaction is already finalized.");
+            if (!TerminalStatuses.Contains(Status))
+                throw new InvalidOperationException(
+                    $"A transaction can only be finalized from a terminal status. Current status: {Status}.");
 
             IsFinalized = true;
             FinalizedAt = DateTimeOffset.UtcNow;
         }
 
         public override string ToString() =>
-            $"TRANSACTION (From: {Sender} → To: {Receiver} | Amount: {Amount} | Fee: {Fee} | Nonce: {Nonce} | Priority: {Priority?.ToString() ?? "None"} | Privacy: {PrivacyMode} | Status: {Status} | InitiatedAt: {InitiatedAt} | IsFinalized: {IsFinalized} | FinalizedAt: {FinalizedAt} | Hash: {Hash} | Block: {TransactionBlockNumber?.ToString() ?? "Unassigned"})";
+            $"TRANSACTION (From: {Sender} \u2192 To: {Receiver} | Amount: {Amount} | Fee: {Fee} | Nonce: {Nonce} | Priority: {Priority?.ToString() ?? "None"} | Privacy: {PrivacyMode} | Status: {Status} | InitiatedAt: {InitiatedAt} | IsFinalized: {IsFinalized} | FinalizedAt: {FinalizedAt} | Hash: {Hash} | Block: {TransactionBlockNumber?.ToString() ?? "Unassigned"})";
     }
 }

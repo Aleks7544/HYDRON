@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Sockets;
 using System.Numerics;
 using System.Text;
 
@@ -13,9 +14,14 @@ namespace HYDRON.Models
         public BigInteger CorrectVotes { get; private set; }
         public BigInteger TotalVotes { get; private set; }
 
+        /// <summary>
+        /// Returns the percentage of correct votes, clamped to [0, 100].
+        /// The clamp guards against any theoretical calling-code inconsistency where
+        /// CorrectVotes might momentarily exceed TotalVotes.
+        /// </summary>
         public double ReputationScore => TotalVotes == 0
             ? 0.0
-            : (double)CorrectVotes / (double)TotalVotes * 100.0;
+            : Math.Min((double)CorrectVotes / (double)TotalVotes * 100.0, 100.0);
 
         public BigInteger TransactionsValidatedCount { get; private set; }
         public BigInteger RejectedTransactionsCount { get; private set; }
@@ -61,11 +67,11 @@ namespace HYDRON.Models
             if (description is not null && Encoding.UTF8.GetByteCount(description) > MaxDescriptionLength)
                 throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} UTF-8 bytes.", nameof(description));
 
-            if (networkEndpointIPv4 is not null && !IPAddress.TryParse(networkEndpointIPv4, out _))
-                throw new ArgumentException("Invalid IPv4 address format.", nameof(networkEndpointIPv4));
+            if (networkEndpointIPv4 is not null)
+                ValidateIPv4(networkEndpointIPv4, nameof(networkEndpointIPv4));
 
-            if (networkEndpointIPv6 is not null && !IPAddress.TryParse(networkEndpointIPv6, out _))
-                throw new ArgumentException("Invalid IPv6 address format.", nameof(networkEndpointIPv6));
+            if (networkEndpointIPv6 is not null)
+                ValidateIPv6(networkEndpointIPv6, nameof(networkEndpointIPv6));
 
             if (networkEndpointDns is not null && !IsValidDnsName(networkEndpointDns))
                 throw new ArgumentException("Invalid DNS name format.", nameof(networkEndpointDns));
@@ -82,6 +88,9 @@ namespace HYDRON.Models
 
         public void AddStake(Atomos amount)
         {
+            if (amount <= Atomos.Zero)
+                throw new ArgumentException("Stake amount must be greater than zero.", nameof(amount));
+
             StakedAmount += amount;
 
             if (Status is ValidatorStatus.Penalized or ValidatorStatus.Inactive
@@ -91,6 +100,8 @@ namespace HYDRON.Models
 
         public void WithdrawStake(Atomos amount)
         {
+            if (amount <= Atomos.Zero)
+                throw new ArgumentException("Withdrawal amount must be greater than zero.", nameof(amount));
             if (Status == ValidatorStatus.Penalized)
                 throw new InvalidOperationException("Penalized validators cannot withdraw stake.");
             if (amount > StakedAmount)
@@ -114,6 +125,8 @@ namespace HYDRON.Models
         {
             if (transactionAmount <= Atomos.Zero)
                 throw new ArgumentException("Transaction amount must be greater than zero.", nameof(transactionAmount));
+            if (_validationIds.Contains(validationId))
+                throw new InvalidOperationException($"Validation {validationId} has already been recorded.");
 
             _validationIds.Add(validationId);
             TransactionsValidatedCount++;
@@ -122,12 +135,17 @@ namespace HYDRON.Models
 
         public void RecordRejection(Guid validationId)
         {
+            if (_validationIds.Contains(validationId))
+                throw new InvalidOperationException($"Validation {validationId} has already been recorded.");
+
             _validationIds.Add(validationId);
             RejectedTransactionsCount++;
         }
 
         public void ApplyPenalty(Atomos requestedPenaltyAmount, string evidence)
         {
+            if (requestedPenaltyAmount <= Atomos.Zero)
+                throw new ArgumentException("Penalty amount must be greater than zero.", nameof(requestedPenaltyAmount));
             if (string.IsNullOrWhiteSpace(evidence))
                 throw new ArgumentException("Penalty evidence cannot be null or empty.", nameof(evidence));
 
@@ -144,6 +162,9 @@ namespace HYDRON.Models
 
         public void ReceiveReward(Atomos rewardAmount)
         {
+            if (rewardAmount <= Atomos.Zero)
+                throw new ArgumentException("Reward amount must be greater than zero.", nameof(rewardAmount));
+
             StakedAmount += rewardAmount;
             TotalRewardsEarned += rewardAmount;
 
@@ -168,6 +189,15 @@ namespace HYDRON.Models
                 Status = ValidatorStatus.Active;
         }
 
+        /// <summary>
+        /// Updates the validator's tier based on the result of <see cref="ValidatorRankingService"/> ranking.
+        /// Only a trusted ranking service should call this method.
+        /// </summary>
+        public void UpdateTier(ValidatorTier tier)
+        {
+            Tier = tier;
+        }
+
         public void UpdateNetworkEndpoints(
             string? networkEndpointIPv4 = null,
             string? networkEndpointIPv6 = null,
@@ -176,11 +206,11 @@ namespace HYDRON.Models
             if (networkEndpointIPv4 is null && networkEndpointIPv6 is null && networkEndpointDns is null)
                 throw new ArgumentException("At least one network endpoint must be provided.");
 
-            if (networkEndpointIPv4 is not null && !IPAddress.TryParse(networkEndpointIPv4, out _))
-                throw new ArgumentException("Invalid IPv4 address format.", nameof(networkEndpointIPv4));
+            if (networkEndpointIPv4 is not null)
+                ValidateIPv4(networkEndpointIPv4, nameof(networkEndpointIPv4));
 
-            if (networkEndpointIPv6 is not null && !IPAddress.TryParse(networkEndpointIPv6, out _))
-                throw new ArgumentException("Invalid IPv6 address format.", nameof(networkEndpointIPv6));
+            if (networkEndpointIPv6 is not null)
+                ValidateIPv6(networkEndpointIPv6, nameof(networkEndpointIPv6));
 
             if (networkEndpointDns is not null && !IsValidDnsName(networkEndpointDns))
                 throw new ArgumentException("Invalid DNS name format.", nameof(networkEndpointDns));
@@ -191,6 +221,20 @@ namespace HYDRON.Models
         }
 
         public Atomos GetVotingWeight() => StakedAmount;
+
+        private static void ValidateIPv4(string address, string paramName)
+        {
+            if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
+                parsed.AddressFamily != AddressFamily.InterNetwork)
+                throw new ArgumentException("Invalid IPv4 address format.", paramName);
+        }
+
+        private static void ValidateIPv6(string address, string paramName)
+        {
+            if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
+                parsed.AddressFamily != AddressFamily.InterNetworkV6)
+                throw new ArgumentException("Invalid IPv6 address format.", paramName);
+        }
 
         private static bool IsValidDnsName(string dns)
         {
