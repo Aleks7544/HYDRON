@@ -48,6 +48,9 @@ namespace HYDRON.Models
             if (_transactions.Any(t => t.Hash == transaction.Hash))
                 throw new InvalidOperationException($"Transaction {transaction.Hash} is already in this block.");
 
+            if (!string.IsNullOrEmpty(Hash))
+                throw new InvalidOperationException("Cannot add transactions to a sealed block.");
+
             _transactions.Add(transaction);
         }
 

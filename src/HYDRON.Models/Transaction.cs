@@ -189,9 +189,6 @@ namespace HYDRON.Models
 
             if (!_assignedValidators.Remove(validatorAddress))
                 throw new InvalidOperationException($"Validator {validatorAddress} is not assigned to this transaction.");
-
-            if (FirstValidator == validatorAddress)
-                FirstValidator = _assignedValidators.Count > 0 ? _assignedValidators[0] : null;
         }
 
         public void AddValidation(Validation validation)
@@ -205,9 +202,14 @@ namespace HYDRON.Models
                 throw new InvalidOperationException($"Validator {validation.ValidatorAddress} has already submitted a validation for this transaction.");
 
             if (_assignedValidators.Contains(validation.ValidatorAddress))
+            {
                 _registeredValidationIds.Add(validation.Id);
+            }
             else
+            {
+                _unassignedValidators.Add(validation.ValidatorAddress);
                 _unregisteredValidationIds.Add(validation.Id);
+            }
         }
 
         public void ChangePriority(Priority newPriority)
