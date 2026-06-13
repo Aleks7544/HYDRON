@@ -102,7 +102,7 @@ namespace HYDRON.Models
                 return false;
             }
         }
-        
+
         public KeySafe DeriveChild(uint index)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -110,16 +110,13 @@ namespace HYDRON.Models
                 throw new InvalidOperationException("Stealth sub-accounts cannot derive child keys.");
 
             byte[] masterPublicKeyBytes = Convert.FromBase64String(PublicKey);
-
             byte[] indexBytes = new byte[4];
             BinaryPrimitives.WriteUInt32BigEndian(indexBytes, index);
 
             byte[] data = [.. masterPublicKeyBytes, .. indexBytes];
             byte[] hmac = HMACSHA512.HashData(_hdChainCode, data);
 
-            byte[] childPrivateKey = new byte[32];
-            for (int i = 0; i < 32; i++)
-                childPrivateKey[i] = (byte)(_ed25519PrivateKey[i] ^ hmac[i]);
+            byte[] childPrivateKey = hmac[..32];
 
             return new KeySafe(childPrivateKey, isStealthSubAccount: true);
         }

@@ -13,10 +13,10 @@ namespace HYDRON.Validator
 
     public class ValidatorRankingService : IValidatorRankingService
     {
-        public const double StakeWeight = 1.000;
-        public const double SpeedWeight = 0.500;
-        public const double ActivityWeight = 0.250;
-        public const double ReputationWeight = 0.125;
+        public const double StakeWeight = 8.0 / 15.0;
+        public const double SpeedWeight = 4.0 / 15.0;
+        public const double ActivityWeight = 2.0 / 15.0;
+        public const double ReputationWeight = 1.0 / 15.0;
 
         private const double DefaultSpeedMs = 1000.0;
 
@@ -55,10 +55,12 @@ namespace HYDRON.Validator
             for (int i = 0; i < validators.Count; i++)
             {
                 Models.Validator validator = validators[i];
-                double finalRank = (StakeWeight * normStake[i])
-                                 + (SpeedWeight * normSpeed[i])
-                                 + (ActivityWeight * normActivity[i])
-                                 + (ReputationWeight * normReputation[i]);
+
+                double finalRank = ((StakeWeight * normStake[i])
+                                  + (SpeedWeight * normSpeed[i])
+                                  + (ActivityWeight * normActivity[i])
+                                  + (ReputationWeight * normReputation[i]))
+                                  * 100.0;
 
                 scores.Add(new ValidatorRank
                 {

@@ -42,20 +42,22 @@ namespace HYDRON.Models
         {
             ArgumentNullException.ThrowIfNull(transaction);
 
+            if (string.IsNullOrEmpty(transaction.Hash))
+                throw new InvalidOperationException("Transaction must have a hash set before being added to a block.");
+
             if (!transaction.IsSignedByReceiver())
                 throw new InvalidOperationException("Transaction requires receiver confirmation that has not been provided.");
 
             if (_transactions.Any(t => t.Hash == transaction.Hash))
                 throw new InvalidOperationException($"Transaction {transaction.Hash} is already in this block.");
 
-            if (!string.IsNullOrEmpty(Hash))
-                throw new InvalidOperationException("Cannot add transactions to a sealed block.");
-
             _transactions.Add(transaction);
         }
 
         public void SetHash(string hash)
         {
+            if (!string.IsNullOrEmpty(Hash))
+                throw new InvalidOperationException("Block hash has already been set and cannot be changed.");
             if (string.IsNullOrWhiteSpace(hash))
                 throw new ArgumentException("Hash cannot be null or empty.", nameof(hash));
 
@@ -64,6 +66,8 @@ namespace HYDRON.Models
 
         public void SetMerkleRoot(string merkleRoot)
         {
+            if (!string.IsNullOrEmpty(MerkleRoot))
+                throw new InvalidOperationException("Merkle root has already been set and cannot be changed.");
             if (string.IsNullOrWhiteSpace(merkleRoot))
                 throw new ArgumentException("Merkle root cannot be null or empty.", nameof(merkleRoot));
 
@@ -72,6 +76,8 @@ namespace HYDRON.Models
 
         public void SetStateRoot(string stateRoot)
         {
+            if (!string.IsNullOrEmpty(StateRoot))
+                throw new InvalidOperationException("State root has already been set and cannot be changed.");
             if (string.IsNullOrWhiteSpace(stateRoot))
                 throw new ArgumentException("State root cannot be null or empty.", nameof(stateRoot));
 

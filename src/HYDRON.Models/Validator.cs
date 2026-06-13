@@ -84,12 +84,15 @@ namespace HYDRON.Models
         {
             StakedAmount += amount;
 
-            if (Status == ValidatorStatus.Penalized && StakedAmount >= Atomos.One)
+            if (Status is ValidatorStatus.Penalized or ValidatorStatus.Inactive
+                && StakedAmount >= Atomos.One)
                 Status = ValidatorStatus.Active;
         }
 
         public void WithdrawStake(Atomos amount)
         {
+            if (Status == ValidatorStatus.Penalized)
+                throw new InvalidOperationException("Penalized validators cannot withdraw stake.");
             if (amount > StakedAmount)
                 throw new InvalidOperationException("Cannot withdraw more than staked amount.");
 
@@ -123,16 +126,17 @@ namespace HYDRON.Models
             RejectedTransactionsCount++;
         }
 
-        public void ApplyPenalty(Atomos penaltyAmount, string evidence)
+        public void ApplyPenalty(Atomos requestedPenaltyAmount, string evidence)
         {
             if (string.IsNullOrWhiteSpace(evidence))
                 throw new ArgumentException("Penalty evidence cannot be null or empty.", nameof(evidence));
 
-            if (penaltyAmount > StakedAmount)
-                penaltyAmount = StakedAmount;
+            Atomos actualPenalty = requestedPenaltyAmount > StakedAmount
+                ? StakedAmount
+                : requestedPenaltyAmount;
 
-            StakedAmount -= penaltyAmount;
-            TotalPenaltyAmount += penaltyAmount;
+            StakedAmount -= actualPenalty;
+            TotalPenaltyAmount += actualPenalty;
 
             if (StakedAmount < Atomos.One)
                 Status = ValidatorStatus.Penalized;
@@ -143,7 +147,8 @@ namespace HYDRON.Models
             StakedAmount += rewardAmount;
             TotalRewardsEarned += rewardAmount;
 
-            if (Status == ValidatorStatus.Penalized && StakedAmount >= Atomos.One)
+            if (Status is ValidatorStatus.Penalized or ValidatorStatus.Inactive
+                && StakedAmount >= Atomos.One)
                 Status = ValidatorStatus.Active;
         }
 
@@ -180,9 +185,9 @@ namespace HYDRON.Models
             if (networkEndpointDns is not null && !IsValidDnsName(networkEndpointDns))
                 throw new ArgumentException("Invalid DNS name format.", nameof(networkEndpointDns));
 
-            NetworkEndpointIPv4 = networkEndpointIPv4;
-            NetworkEndpointIPv6 = networkEndpointIPv6;
-            NetworkEndpointDns = networkEndpointDns;
+            NetworkEndpointIPv4 = networkEndpointIPv4 ?? NetworkEndpointIPv4;
+            NetworkEndpointIPv6 = networkEndpointIPv6 ?? NetworkEndpointIPv6;
+            NetworkEndpointDns = networkEndpointDns ?? NetworkEndpointDns;
         }
 
         public Atomos GetVotingWeight() => StakedAmount;

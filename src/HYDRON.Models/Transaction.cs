@@ -24,6 +24,7 @@ namespace HYDRON.Models
         public PrivacyMode PrivacyMode { get; private set; }
         public string? EphemeralPublicKey { get; private set; }
         public string? FirstValidator => _assignedValidators.Count > 0 ? _assignedValidators[0] : null;
+        private int? _frozenValidatorCount;
 
         private readonly List<string> _assignedValidators = [];
         private readonly List<string> _unassignedValidators = [];
@@ -37,7 +38,7 @@ namespace HYDRON.Models
         public IReadOnlyList<Guid> UnregisteredValidationIds => _unregisteredValidationIds.AsReadOnly();
 
         public int RequiredSupermajorityValidationsCount =>
-            (int)Math.Ceiling(_assignedValidators.Count * 2.0 / 3.0);
+            (int)Math.Ceiling((_frozenValidatorCount ?? _assignedValidators.Count) * 2.0 / 3.0);
 
         private static readonly Dictionary<TransactionStatus, HashSet<TransactionStatus>> ValidTransitions = new()
         {
@@ -129,6 +130,8 @@ namespace HYDRON.Models
 
         public void SetHash(string hash)
         {
+            if (!string.IsNullOrEmpty(Hash))
+                throw new InvalidOperationException("Transaction hash has already been set and cannot be changed.");
             if (string.IsNullOrWhiteSpace(hash))
                 throw new ArgumentException("Hash cannot be null or empty.", nameof(hash));
             if (IsFinalized)
@@ -145,6 +148,9 @@ namespace HYDRON.Models
             if (!ValidTransitions.TryGetValue(Status, out HashSet<TransactionStatus>? allowed) ||
                 !allowed.Contains(newStatus))
                 throw new InvalidOperationException($"Invalid status transition from {Status} to {newStatus}.");
+
+            if (newStatus == TransactionStatus.PendingValidation)
+                _frozenValidatorCount = _assignedValidators.Count;
 
             Status = newStatus;
         }

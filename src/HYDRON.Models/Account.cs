@@ -14,8 +14,23 @@ namespace HYDRON.Models
         public Atomos Balance { get; private set; }
         public BigInteger Nonce { get; private set; }
 
+        private readonly Lock _stateHashLock = new();
         private string? _stateHashCache;
-        public string StateHash => _stateHashCache ??= ComputeStateHash();
+        public string StateHash
+        {
+            get
+            {
+                _stateHashLock.Enter();
+                try
+                {
+                    return _stateHashCache ??= ComputeStateHash();
+                }
+                finally
+                {
+                    _stateHashLock.Exit();
+                }
+            }
+        }
 
         public Account(string address, string publicKey, string stealthPublicKey)
         {
@@ -95,7 +110,18 @@ namespace HYDRON.Models
             return Convert.ToHexStringLower(hash);
         }
 
-        private void InvalidateStateHash() => _stateHashCache = null;
+        private void InvalidateStateHash()
+        {
+            _stateHashLock.Enter();
+            try
+            {
+                _stateHashCache = null;
+            }
+            finally
+            {
+                _stateHashLock.Exit();
+            }
+        }
 
         // ── Display ───────────────────────────────────────────────────────────
 

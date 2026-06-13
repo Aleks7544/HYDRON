@@ -4,10 +4,10 @@ namespace HYDRON.Models
 {
     public class BlockReward
     {
-        public Guid Id { get; private set; } = Guid.CreateVersion7(DateTimeOffset.UtcNow);
+        public Guid Id { get; private set; }
 
         public BigInteger BlockNumber { get; private set; }
-        public DateTimeOffset IssuedAt { get; private set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset IssuedAt { get; private set; }
         public RewardStatus Status { get; private set; } = RewardStatus.Pending;
         public DateTimeOffset? SettledAt { get; private set; }
 
@@ -45,6 +45,8 @@ namespace HYDRON.Models
                 throw new ArgumentException("Average validation time cannot be negative.", nameof(averageValidationTimeMs));
             ArgumentNullException.ThrowIfNull(validatorRewards);
 
+            Id = Guid.CreateVersion7(DateTimeOffset.UtcNow);
+            IssuedAt = DateTimeOffset.UtcNow;
             BlockNumber = blockNumber;
             CoreCapacityAtBlock = coreCapacityAtBlock;
             TotalValidatorsAtBlock = totalValidatorsAtBlock;

@@ -34,6 +34,10 @@
 
         public void SignValidation(string signature)
         {
+            if (Status != ValidationStatus.Pending)
+                throw new InvalidOperationException("Cannot sign a validation that has already been completed.");
+            if (ValidationSignature is not null)
+                throw new InvalidOperationException("Validation has already been signed.");
             if (string.IsNullOrWhiteSpace(signature))
                 throw new ArgumentException("Signature cannot be empty.", nameof(signature));
 
@@ -76,6 +80,8 @@
 
         public void Penalize(Atomos penaltyAmount, string evidence)
         {
+            if (Status != ValidationStatus.Confirmed)
+                throw new InvalidOperationException("Only confirmed validations can be penalized.");
             if (IsPenalized)
                 throw new InvalidOperationException("Validation already penalized.");
             if (string.IsNullOrWhiteSpace(evidence))
