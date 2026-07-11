@@ -27,8 +27,6 @@ namespace HYDRON.Models
             _atomos = atomos;
         }
 
-        // ── Comparison ────────────────────────────────────────────────────────
-
         public int CompareTo(Atomos other) => _atomos.CompareTo(other._atomos);
 
         public int CompareTo(object? obj) => obj is not Atomos atomos
@@ -40,8 +38,6 @@ namespace HYDRON.Models
         public override bool Equals(object? obj) => obj is Atomos atomos && Equals(atomos);
 
         public override int GetHashCode() => _atomos.GetHashCode();
-
-        // ── Operators ─────────────────────────────────────────────────────────
 
         public static bool operator ==(Atomos left, Atomos right) => left.Equals(right);
         public static bool operator !=(Atomos left, Atomos right) => !(left == right);
@@ -85,8 +81,6 @@ namespace HYDRON.Models
 
         public static explicit operator BigInteger(Atomos atomos) => atomos._atomos;
 
-        // ── Ratio scaling ─────────────────────────────────────────────────────
-
         public Atomos Scale(BigInteger numerator, BigInteger denominator)
         {
             if (numerator < BigInteger.Zero)
@@ -99,8 +93,6 @@ namespace HYDRON.Models
 
         public Atomos Scale(int numerator, int denominator)
             => Scale(new BigInteger(numerator), new BigInteger(denominator));
-
-        // ── Denomination conversions (display only) ───────────────────────────
 
         public static Atomos FromDenomination(double value, Denominations denomination) => value < 0
             ? throw new ArgumentOutOfRangeException(nameof(value), "Denomination value cannot be negative.")
@@ -122,8 +114,6 @@ namespace HYDRON.Models
             Denominations.Hyz => HyzFactor,
             _ => throw new ArgumentOutOfRangeException(nameof(denomination), "Invalid denomination.")
         };
-
-        // ── Formatting ────────────────────────────────────────────────────────
 
         public string ToString(string? format, IFormatProvider? formatProvider)
             => _atomos.ToString(format, formatProvider);

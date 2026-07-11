@@ -37,8 +37,15 @@ namespace HYDRON.Models
         public IReadOnlyList<Guid> RegisteredValidationIds => _registeredValidationIds.AsReadOnly();
         public IReadOnlyList<Guid> UnregisteredValidationIds => _unregisteredValidationIds.AsReadOnly();
 
-        public int RequiredSupermajorityValidationsCount =>
-            (int)Math.Ceiling((_frozenValidatorCount ?? _assignedValidators.Count) * 2.0 / 3.0);
+        public int RequiredSupermajorityValidationsCount
+        {
+            get
+            {
+                int count = _frozenValidatorCount ?? _assignedValidators.Count;
+                if (count == 0) return 1;
+                return (int)Math.Ceiling(count * 2.0 / 3.0);
+            }
+        }
 
         private static readonly Dictionary<TransactionStatus, HashSet<TransactionStatus>> ValidTransitions = new()
         {
@@ -89,8 +96,6 @@ namespace HYDRON.Models
                 throw new ArgumentException("Sender signature cannot be null or empty.", nameof(senderSignature));
             if (amount <= Atomos.Zero)
                 throw new ArgumentException("Amount must be greater than zero.", nameof(amount));
-            if (fee < Atomos.Zero)
-                throw new ArgumentException("Fee cannot be negative.", nameof(fee));
             if (nonce < BigInteger.Zero)
                 throw new ArgumentException("Nonce cannot be negative.", nameof(nonce));
             if (privacyMode != PrivacyMode.Public && string.IsNullOrWhiteSpace(ephemeralPublicKey))
@@ -159,6 +164,8 @@ namespace HYDRON.Models
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot assign a block number to a finalized transaction.");
+            if (TransactionBlockNumber.HasValue)
+                throw new InvalidOperationException("Block number has already been assigned.");
             if (blockNumber < BigInteger.Zero)
                 throw new ArgumentException("Block number cannot be negative.", nameof(blockNumber));
 
@@ -190,6 +197,8 @@ namespace HYDRON.Models
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot remove a validator from a finalized transaction.");
+            if (_frozenValidatorCount.HasValue)
+                throw new InvalidOperationException("Cannot remove a validator after consensus has been frozen.");
             if (string.IsNullOrWhiteSpace(validatorAddress))
                 throw new ArgumentException("Validator address cannot be null or empty.", nameof(validatorAddress));
 

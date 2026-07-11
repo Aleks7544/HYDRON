@@ -11,11 +11,19 @@ namespace HYDRON.Models
         public string StealthPublicKey { get; private set; }
         public string? Handle { get; private set; }
 
-        public Atomos Balance { get; private set; }
+        private Atomos _balance = Atomos.Zero;
+        private readonly Lock _balanceLock = new();
+
+        public Atomos Balance
+        {
+            get { lock (_balanceLock) return _balance; }
+        }
+
         public BigInteger Nonce { get; private set; }
 
         private readonly Lock _stateHashLock = new();
         private string? _stateHashCache;
+
         public string StateHash
         {
             get
@@ -44,35 +52,34 @@ namespace HYDRON.Models
             Address = address;
             PublicKey = publicKey;
             StealthPublicKey = stealthPublicKey;
-            Balance = Atomos.Zero;
             Nonce = BigInteger.Zero;
         }
 
-        // ── Balance ───────────────────────────────────────────────────────────
-
         public bool TryDeductBalance(Atomos amount)
         {
-            if (Balance < amount) return false;
-            Balance -= amount;
+            lock (_balanceLock)
+            {
+                if (_balance < amount) return false;
+                _balance -= amount;
+            }
             InvalidateStateHash();
             return true;
         }
 
         public void AddBalance(Atomos amount)
         {
-            Balance += amount;
+            lock (_balanceLock)
+            {
+                _balance += amount;
+            }
             InvalidateStateHash();
         }
-
-        // ── Nonce ─────────────────────────────────────────────────────────────
 
         public void IncrementNonce()
         {
             Nonce++;
             InvalidateStateHash();
         }
-
-        // ── Handle ────────────────────────────────────────────────────────────
 
         private const int MaxHandleLength = 1000;
 
@@ -88,8 +95,6 @@ namespace HYDRON.Models
             InvalidateStateHash();
         }
 
-        // ── Stealth Key Rotation ──────────────────────────────────────────────
-
         internal void ApplyStealthKeyRotation(string newStealthPublicKey)
         {
             if (string.IsNullOrWhiteSpace(newStealthPublicKey))
@@ -99,18 +104,26 @@ namespace HYDRON.Models
             InvalidateStateHash();
         }
 
-        // ── State Hash ────────────────────────────────────────────────────────
-
         private string ComputeStateHash()
         {
-            string raw = $"{Address}|{PublicKey}|{StealthPublicKey}|{Balance}|{Nonce}|{Handle ?? string.Empty}";
-            byte[] bytes = Encoding.UTF8.GetBytes(raw);
-            byte[] hash = SHA256.HashData(bytes);
+            StringBuilder sb = new();
+            sb.Append(Address).Append('|')
+              .Append(PublicKey).Append('|')
+              .Append(StealthPublicKey).Append('|')
+              .Append(Balance).Append('|')
+              .Append(Nonce).Append('|')
+              .Append(Handle ?? string.Empty);
 
+            AppendExtraHashFields(sb);
+
+            byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            byte[] hash = SHA256.HashData(bytes);
             return Convert.ToHexStringLower(hash);
         }
 
-        private void InvalidateStateHash()
+        protected virtual void AppendExtraHashFields(StringBuilder sb) { }
+
+        protected void InvalidateStateHash()
         {
             _stateHashLock.Enter();
             try
@@ -122,8 +135,6 @@ namespace HYDRON.Models
                 _stateHashLock.Exit();
             }
         }
-
-        // ── Display ───────────────────────────────────────────────────────────
 
         public override string ToString() =>
             $"ACCOUNT (Address: {Address} | Balance: {Balance} | Nonce: {Nonce} | Handle: {Handle ?? "N/A"})";

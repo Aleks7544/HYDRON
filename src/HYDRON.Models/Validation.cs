@@ -48,6 +48,8 @@
         {
             if (Status != ValidationStatus.Pending)
                 throw new InvalidOperationException($"Cannot confirm validation with status {Status}.");
+            if (ValidationSignature is null)
+                throw new InvalidOperationException("Validation must be signed before it can be confirmed.");
             if (validationSpeedMs < 0)
                 throw new ArgumentException("Validation speed cannot be negative.", nameof(validationSpeedMs));
 
@@ -60,6 +62,8 @@
         {
             if (Status != ValidationStatus.Pending)
                 throw new InvalidOperationException($"Cannot reject validation with status {Status}.");
+            if (ValidationSignature is null)
+                throw new InvalidOperationException("Validation must be signed before it can be rejected.");
             if (validationSpeedMs < 0)
                 throw new ArgumentException("Validation speed cannot be negative.", nameof(validationSpeedMs));
 
@@ -84,6 +88,8 @@
                 throw new InvalidOperationException("Only confirmed validations can be penalized.");
             if (IsPenalized)
                 throw new InvalidOperationException("Validation already penalized.");
+            if (penaltyAmount <= Atomos.Zero)
+                throw new ArgumentException("Penalty amount must be greater than zero.", nameof(penaltyAmount));
             if (string.IsNullOrWhiteSpace(evidence))
                 throw new ArgumentException("Penalty evidence cannot be null or empty.", nameof(evidence));
 
