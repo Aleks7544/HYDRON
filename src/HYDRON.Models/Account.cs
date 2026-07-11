@@ -87,6 +87,9 @@ namespace HYDRON.Models
         {
             if (newHandle is not null)
             {
+                if (string.IsNullOrWhiteSpace(newHandle))
+                    throw new ArgumentException("Handle cannot be whitespace-only.", nameof(newHandle));
+
                 int byteLength = Encoding.UTF8.GetByteCount(newHandle);
                 if (byteLength > MaxHandleLength)
                     throw new ArgumentException($"Handle cannot exceed {MaxHandleLength} UTF-8 bytes.", nameof(newHandle));

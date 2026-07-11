@@ -2,6 +2,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace HYDRON.Models
 {
@@ -16,7 +17,10 @@ namespace HYDRON.Models
         private Key? _x25519Key;
         private readonly byte[] _hdChainCode;
         private readonly byte[]? _hdMasterSeed;
-        private bool _disposed;
+
+        // Use int with Interlocked for thread-safe disposal flag (bool is not guaranteed atomic).
+        private int _disposed;
+        private bool IsDisposed => _disposed == 1;
 
         public string PublicKey { get; }
         public string? StealthPublicKey { get; private set; }
@@ -67,7 +71,7 @@ namespace HYDRON.Models
 
         public string Sign(string canonicalData)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (string.IsNullOrEmpty(canonicalData))
                 throw new ArgumentException("Canonical data cannot be null or empty.", nameof(canonicalData));
 
@@ -105,7 +109,7 @@ namespace HYDRON.Models
 
         public KeySafe DeriveChild(uint index)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (IsStealthSubAccount)
                 throw new InvalidOperationException("Stealth sub-accounts cannot derive child keys.");
 
@@ -123,7 +127,7 @@ namespace HYDRON.Models
         public (string ephemeralPublicKey, string stealthAddress) ComputeStealthPayment(
             string recipientStealthPublicKey)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (string.IsNullOrEmpty(recipientStealthPublicKey))
                 throw new ArgumentException("Recipient stealth public key cannot be null or empty.", nameof(recipientStealthPublicKey));
 
@@ -140,7 +144,7 @@ namespace HYDRON.Models
 
         public bool IsStealthPaymentMine(string ephemeralPublicKey, string stealthAddress)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (IsStealthSubAccount)
                 throw new InvalidOperationException("Stealth sub-accounts cannot scan for stealth payments.");
             if (_x25519Key is null)
@@ -165,7 +169,7 @@ namespace HYDRON.Models
 
         public KeySafe DeriveStealthSpendKeySafe(string ephemeralPublicKey)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (IsStealthSubAccount)
                 throw new InvalidOperationException("Stealth sub-accounts cannot derive stealth spend keys.");
             if (_x25519Key is null)
@@ -183,9 +187,12 @@ namespace HYDRON.Models
             return new KeySafe(stealthSpendKey, isStealthSubAccount: true);
         }
 
+        // Note: RotateStealthKeyPair is not thread-safe by design.
+        // A KeySafe is a personal wallet object and should not be shared across threads.
+        // If cross-thread access is required, the caller is responsible for synchronisation.
         public string RotateStealthKeyPair()
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (IsStealthSubAccount)
                 throw new InvalidOperationException("Stealth sub-accounts do not have a stealth key pair to rotate.");
 
@@ -212,7 +219,6 @@ namespace HYDRON.Models
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (IsStealthSubAccount || _x25519Key is null)
                 throw new InvalidOperationException("Stealth sub-accounts do not have a stealth private key.");
-
             return Convert.ToBase64String(_x25519Key.Export(KeyBlobFormat.RawPrivateKey));
         }
 

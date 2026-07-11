@@ -14,9 +14,14 @@ namespace HYDRON.Models
         public BigInteger CorrectVotes { get; private set; }
         public BigInteger TotalVotes { get; private set; }
 
+        /// <summary>
+        /// Returns the percentage of correct votes, clamped to [0, 100].
+        /// The clamp guards against any theoretical calling-code inconsistency where
+        /// CorrectVotes might momentarily exceed TotalVotes.
+        /// </summary>
         public double ReputationScore => TotalVotes == 0
             ? 0.0
-            : (double)CorrectVotes / (double)TotalVotes * 100.0;
+            : Math.Min((double)CorrectVotes / (double)TotalVotes * 100.0, 100.0);
 
         public BigInteger TransactionsValidatedCount { get; private set; }
         public BigInteger RejectedTransactionsCount { get; private set; }
@@ -80,6 +85,9 @@ namespace HYDRON.Models
 
         public void AddStake(Atomos amount)
         {
+            if (amount <= Atomos.Zero)
+                throw new ArgumentException("Stake amount must be greater than zero.", nameof(amount));
+
             StakedAmount += amount;
             InvalidateStateHash();
 
@@ -90,6 +98,8 @@ namespace HYDRON.Models
 
         public void WithdrawStake(Atomos amount)
         {
+            if (amount <= Atomos.Zero)
+                throw new ArgumentException("Withdrawal amount must be greater than zero.", nameof(amount));
             if (Status == ValidatorStatus.Penalized)
                 throw new InvalidOperationException("Penalized validators cannot withdraw stake.");
             if (amount > StakedAmount)
@@ -148,6 +158,9 @@ namespace HYDRON.Models
 
         public void ReceiveReward(Atomos rewardAmount)
         {
+            if (rewardAmount <= Atomos.Zero)
+                throw new ArgumentException("Reward amount must be greater than zero.", nameof(rewardAmount));
+
             StakedAmount += rewardAmount;
             TotalRewardsEarned += rewardAmount;
             InvalidateStateHash();
@@ -184,6 +197,15 @@ namespace HYDRON.Models
         {
             if (Status == ValidatorStatus.Unreachable && StakedAmount >= Atomos.One)
                 Status = ValidatorStatus.Active;
+        }
+
+        /// <summary>
+        /// Updates the validator's tier based on the result of <see cref="ValidatorRankingService"/> ranking.
+        /// Only a trusted ranking service should call this method.
+        /// </summary>
+        public void UpdateTier(ValidatorTier tier)
+        {
+            Tier = tier;
         }
 
         public void UpdateNetworkEndpoints(
@@ -234,6 +256,20 @@ namespace HYDRON.Models
         private static void ValidateIPv6(string? address, string paramName)
         {
             if (address is null) return;
+            if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
+                parsed.AddressFamily != AddressFamily.InterNetworkV6)
+                throw new ArgumentException("Invalid IPv6 address format.", paramName);
+        }
+
+        private static void ValidateIPv4(string address, string paramName)
+        {
+            if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
+                parsed.AddressFamily != AddressFamily.InterNetwork)
+                throw new ArgumentException("Invalid IPv4 address format.", paramName);
+        }
+
+        private static void ValidateIPv6(string address, string paramName)
+        {
             if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
                 parsed.AddressFamily != AddressFamily.InterNetworkV6)
                 throw new ArgumentException("Invalid IPv6 address format.", paramName);
