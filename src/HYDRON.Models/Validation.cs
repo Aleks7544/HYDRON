@@ -44,10 +44,6 @@
             ValidationSignature = signature;
         }
 
-        /// <summary>
-        /// Confirms the validation. The validation must be signed first via
-        /// <see cref="SignValidation"/> — an unsigned confirmation has no cryptographic weight.
-        /// </summary>
         public void Confirm(double validationSpeedMs)
         {
             if (ValidationSignature is null)
@@ -64,10 +60,6 @@
             ValidatedAt = DateTimeOffset.UtcNow;
         }
 
-        /// <summary>
-        /// Rejects the validation. The validation must be signed first via
-        /// <see cref="SignValidation"/> — an unsigned rejection has no cryptographic weight.
-        /// </summary>
         public void Reject(double validationSpeedMs)
         {
             if (ValidationSignature is null)

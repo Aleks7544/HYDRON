@@ -245,12 +245,6 @@ namespace HYDRON.Models
             }
         }
 
-        /// <summary>
-        /// Changes the transaction's priority. Only allowed while the transaction is in
-        /// <see cref="TransactionStatus.InitiatedBySender"/> or
-        /// <see cref="TransactionStatus.AwaitingReceiverAcceptance"/> — after that, the
-        /// validator set has already been selected and the priority cannot be retroactively changed.
-        /// </summary>
         public void ChangePriority(Priority newPriority)
         {
             if (IsFinalized)
@@ -262,13 +256,6 @@ namespace HYDRON.Models
             Priority = newPriority;
         }
 
-        /// <summary>
-        /// Marks the transaction as finalized (immutable). The transaction must be in a
-        /// terminal status (<see cref="TransactionStatus.Settled"/>,
-        /// <see cref="TransactionStatus.Rejected"/>, <see cref="TransactionStatus.AbortedBySender"/>,
-        /// <see cref="TransactionStatus.AbortedByReceiver"/>, or
-        /// <see cref="TransactionStatus.TimedOut"/>) before it can be finalized.
-        /// </summary>
         public void FinalizeTransaction()
         {
             if (IsFinalized)

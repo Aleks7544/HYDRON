@@ -58,12 +58,6 @@ namespace HYDRON.Models
             _transactions.Add(transaction);
         }
 
-        /// <summary>
-        /// Atomically seals the block by setting its hash, Merkle root, and state root in one call.
-        /// After sealing, no further transactions can be added and none of the three values
-        /// can be changed individually. This prevents the block from ever being in a state
-        /// where some — but not all — of the three commitment values are set.
-        /// </summary>
         public void Seal(string hash, string merkleRoot, string stateRoot)
         {
             if (_sealed)
@@ -82,9 +76,6 @@ namespace HYDRON.Models
             StateRoot = stateRoot;
             _sealed = true;
         }
-
-        // Keep the individual setters for backward compatibility but restrict them to pre-seal only.
-        // Prefer Seal() for new code.
 
         public void SetHash(string hash)
         {

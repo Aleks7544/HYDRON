@@ -14,11 +14,6 @@ namespace HYDRON.Models
         public BigInteger CorrectVotes { get; private set; }
         public BigInteger TotalVotes { get; private set; }
 
-        /// <summary>
-        /// Returns the percentage of correct votes, clamped to [0, 100].
-        /// The clamp guards against any theoretical calling-code inconsistency where
-        /// CorrectVotes might momentarily exceed TotalVotes.
-        /// </summary>
         public double ReputationScore => TotalVotes == 0
             ? 0.0
             : Math.Min((double)CorrectVotes / (double)TotalVotes * 100.0, 100.0);
@@ -199,15 +194,6 @@ namespace HYDRON.Models
                 Status = ValidatorStatus.Active;
         }
 
-        /// <summary>
-        /// Updates the validator's tier based on the result of <see cref="ValidatorRankingService"/> ranking.
-        /// Only a trusted ranking service should call this method.
-        /// </summary>
-        public void UpdateTier(ValidatorTier tier)
-        {
-            Tier = tier;
-        }
-
         public void UpdateNetworkEndpoints(
             string? networkEndpointIPv4 = null,
             string? networkEndpointIPv6 = null,
@@ -256,20 +242,6 @@ namespace HYDRON.Models
         private static void ValidateIPv6(string? address, string paramName)
         {
             if (address is null) return;
-            if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
-                parsed.AddressFamily != AddressFamily.InterNetworkV6)
-                throw new ArgumentException("Invalid IPv6 address format.", paramName);
-        }
-
-        private static void ValidateIPv4(string address, string paramName)
-        {
-            if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
-                parsed.AddressFamily != AddressFamily.InterNetwork)
-                throw new ArgumentException("Invalid IPv4 address format.", paramName);
-        }
-
-        private static void ValidateIPv6(string address, string paramName)
-        {
             if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
                 parsed.AddressFamily != AddressFamily.InterNetworkV6)
                 throw new ArgumentException("Invalid IPv6 address format.", paramName);

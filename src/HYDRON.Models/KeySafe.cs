@@ -18,7 +18,6 @@ namespace HYDRON.Models
         private readonly byte[] _hdChainCode;
         private readonly byte[]? _hdMasterSeed;
 
-        // Use int with Interlocked for thread-safe disposal flag (bool is not guaranteed atomic).
         private int _disposed;
         private bool IsDisposed => _disposed == 1;
 
@@ -187,9 +186,6 @@ namespace HYDRON.Models
             return new KeySafe(stealthSpendKey, isStealthSubAccount: true);
         }
 
-        // Note: RotateStealthKeyPair is not thread-safe by design.
-        // A KeySafe is a personal wallet object and should not be shared across threads.
-        // If cross-thread access is required, the caller is responsible for synchronisation.
         public string RotateStealthKeyPair()
         {
             ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -207,7 +203,7 @@ namespace HYDRON.Models
 
         public string ExportMasterSeed()
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (IsStealthSubAccount || _hdMasterSeed is null)
                 throw new InvalidOperationException("Stealth sub-accounts do not have an HD master seed.");
 
@@ -216,7 +212,7 @@ namespace HYDRON.Models
 
         public string ExportStealthPrivateKey()
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (IsStealthSubAccount || _x25519Key is null)
                 throw new InvalidOperationException("Stealth sub-accounts do not have a stealth private key.");
             return Convert.ToBase64String(_x25519Key.Export(KeyBlobFormat.RawPrivateKey));
@@ -224,7 +220,7 @@ namespace HYDRON.Models
 
         public string ExportPrivateKey()
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
             return Convert.ToBase64String(_ed25519PrivateKey);
         }
 
@@ -255,7 +251,7 @@ namespace HYDRON.Models
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (IsDisposed) return;
 
             _x25519Key?.Dispose();
             CryptographicOperations.ZeroMemory(_ed25519PrivateKey);
@@ -263,7 +259,7 @@ namespace HYDRON.Models
             if (_hdMasterSeed is not null)
                 CryptographicOperations.ZeroMemory(_hdMasterSeed);
 
-            _disposed = true;
+            _disposed = 1;
         }
 
         private static byte[] GenerateRandomBytes(int length)
