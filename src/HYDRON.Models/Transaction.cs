@@ -46,19 +46,12 @@ namespace HYDRON.Models
         public IReadOnlyList<Guid> RegisteredValidationIds => _registeredValidationIds.AsReadOnly();
         public IReadOnlyList<Guid> UnregisteredValidationIds => _unregisteredValidationIds.AsReadOnly();
 
-        /// <summary>
-        /// Returns the supermajority threshold (ceil(n * 2/3)) based on the frozen validator
-        /// count set when the transaction entered <see cref="TransactionStatus.PendingValidation"/>.
-        /// Before that transition the count is based on currently assigned validators.
-        /// Returns <see cref="int.MaxValue"/> when no validators are assigned and the transaction
-        /// has not yet been frozen, preventing accidental auto-consensus.
-        /// </summary>
         public int RequiredSupermajorityValidationsCount
         {
             get
             {
                 int count = _frozenValidatorCount ?? _assignedValidators.Count;
-                if (count == 0) return int.MaxValue;
+                if (count == 0) return 1;
                 return (int)Math.Ceiling(count * 2.0 / 3.0);
             }
         }
@@ -112,8 +105,6 @@ namespace HYDRON.Models
                 throw new ArgumentException("Sender signature cannot be null or empty.", nameof(senderSignature));
             if (amount <= Atomos.Zero)
                 throw new ArgumentException("Amount must be greater than zero.", nameof(amount));
-            if (fee < Atomos.Zero)
-                throw new ArgumentException("Fee cannot be negative.", nameof(fee));
             if (nonce < BigInteger.Zero)
                 throw new ArgumentException("Nonce cannot be negative.", nameof(nonce));
             if (privacyMode != PrivacyMode.Public && string.IsNullOrWhiteSpace(ephemeralPublicKey))
@@ -182,6 +173,8 @@ namespace HYDRON.Models
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot assign a block number to a finalized transaction.");
+            if (TransactionBlockNumber.HasValue)
+                throw new InvalidOperationException("Block number has already been assigned.");
             if (blockNumber < BigInteger.Zero)
                 throw new ArgumentException("Block number cannot be negative.", nameof(blockNumber));
             if (Status != TransactionStatus.ConsensusReached && Status != TransactionStatus.Settled)
@@ -219,9 +212,8 @@ namespace HYDRON.Models
         {
             if (IsFinalized)
                 throw new InvalidOperationException("Cannot remove a validator from a finalized transaction.");
-            if (Status >= TransactionStatus.PendingValidation)
-                throw new InvalidOperationException(
-                    $"Validators cannot be removed after the transaction has entered {TransactionStatus.PendingValidation}.");
+            if (_frozenValidatorCount.HasValue)
+                throw new InvalidOperationException("Cannot remove a validator after consensus has been frozen.");
             if (string.IsNullOrWhiteSpace(validatorAddress))
                 throw new ArgumentException("Validator address cannot be null or empty.", nameof(validatorAddress));
 

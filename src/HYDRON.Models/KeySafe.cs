@@ -113,11 +113,10 @@ namespace HYDRON.Models
             if (IsStealthSubAccount)
                 throw new InvalidOperationException("Stealth sub-accounts cannot derive child keys.");
 
-            byte[] masterPublicKeyBytes = Convert.FromBase64String(PublicKey);
             byte[] indexBytes = new byte[4];
             BinaryPrimitives.WriteUInt32BigEndian(indexBytes, index);
 
-            byte[] data = [.. masterPublicKeyBytes, .. indexBytes];
+            byte[] data = [(byte)0x01, .. _ed25519PrivateKey, .. indexBytes];
             byte[] hmac = HMACSHA512.HashData(_hdChainCode, data);
 
             byte[] childPrivateKey = hmac[..32];
@@ -148,6 +147,8 @@ namespace HYDRON.Models
             ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (IsStealthSubAccount)
                 throw new InvalidOperationException("Stealth sub-accounts cannot scan for stealth payments.");
+            if (_x25519Key is null)
+                throw new InvalidOperationException("No X25519 key available for stealth scanning.");
             if (string.IsNullOrEmpty(ephemeralPublicKey))
                 throw new ArgumentException("Ephemeral public key cannot be null or empty.", nameof(ephemeralPublicKey));
             if (string.IsNullOrEmpty(stealthAddress))
@@ -155,7 +156,7 @@ namespace HYDRON.Models
 
             try
             {
-                byte[] sharedSecret = ComputeX25519SharedSecret(_x25519Key!, Convert.FromBase64String(ephemeralPublicKey));
+                byte[] sharedSecret = ComputeX25519SharedSecret(_x25519Key, Convert.FromBase64String(ephemeralPublicKey));
                 byte[] expectedAddressBytes = SHA256.HashData(sharedSecret);
                 string expectedAddress = Convert.ToHexStringLower(expectedAddressBytes);
                 return string.Equals(expectedAddress, stealthAddress, StringComparison.OrdinalIgnoreCase);
@@ -171,10 +172,12 @@ namespace HYDRON.Models
             ObjectDisposedException.ThrowIf(IsDisposed, this);
             if (IsStealthSubAccount)
                 throw new InvalidOperationException("Stealth sub-accounts cannot derive stealth spend keys.");
+            if (_x25519Key is null)
+                throw new InvalidOperationException("No X25519 key available.");
             if (string.IsNullOrEmpty(ephemeralPublicKey))
                 throw new ArgumentException("Ephemeral public key cannot be null or empty.", nameof(ephemeralPublicKey));
 
-            byte[] sharedSecret = ComputeX25519SharedSecret(_x25519Key!, Convert.FromBase64String(ephemeralPublicKey));
+            byte[] sharedSecret = ComputeX25519SharedSecret(_x25519Key, Convert.FromBase64String(ephemeralPublicKey));
             byte[] sharedSecretHash = SHA256.HashData(sharedSecret);
 
             byte[] stealthSpendKey = new byte[32];
@@ -195,7 +198,7 @@ namespace HYDRON.Models
 
             (Key newKey, string newPublicKey) = GenerateX25519Key();
 
-            _x25519Key?.Dispose(); // securely wipes old key memory inside NSec
+            _x25519Key?.Dispose();
             _x25519Key = newKey;
             StealthPublicKey = newPublicKey;
 
@@ -204,15 +207,16 @@ namespace HYDRON.Models
 
         public string ExportMasterSeed()
         {
-            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (IsStealthSubAccount || _hdMasterSeed is null)
                 throw new InvalidOperationException("Stealth sub-accounts do not have an HD master seed.");
+
             return Convert.ToBase64String(_hdMasterSeed);
         }
 
         public string ExportStealthPrivateKey()
         {
-            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (IsStealthSubAccount || _x25519Key is null)
                 throw new InvalidOperationException("Stealth sub-accounts do not have a stealth private key.");
             return Convert.ToBase64String(_x25519Key.Export(KeyBlobFormat.RawPrivateKey));
@@ -220,7 +224,7 @@ namespace HYDRON.Models
 
         public string ExportPrivateKey()
         {
-            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            ObjectDisposedException.ThrowIf(_disposed, this);
             return Convert.ToBase64String(_ed25519PrivateKey);
         }
 
@@ -251,9 +255,15 @@ namespace HYDRON.Models
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+            if (_disposed) return;
+
             _x25519Key?.Dispose();
-            GC.SuppressFinalize(this);
+            CryptographicOperations.ZeroMemory(_ed25519PrivateKey);
+
+            if (_hdMasterSeed is not null)
+                CryptographicOperations.ZeroMemory(_hdMasterSeed);
+
+            _disposed = true;
         }
 
         private static byte[] GenerateRandomBytes(int length)

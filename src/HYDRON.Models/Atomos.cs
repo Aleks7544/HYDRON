@@ -27,8 +27,6 @@ namespace HYDRON.Models
             _atomos = atomos;
         }
 
-        // ── Comparison ────────────────────────────────────────────────────────────────────
-
         public int CompareTo(Atomos other) => _atomos.CompareTo(other._atomos);
 
         public int CompareTo(object? obj) => obj is not Atomos atomos
@@ -40,8 +38,6 @@ namespace HYDRON.Models
         public override bool Equals(object? obj) => obj is Atomos atomos && Equals(atomos);
 
         public override int GetHashCode() => _atomos.GetHashCode();
-
-        // ── Operators ───────────────────────────────────────────────────────────────────
 
         public static bool operator ==(Atomos left, Atomos right) => left.Equals(right);
         public static bool operator !=(Atomos left, Atomos right) => !(left == right);
@@ -85,8 +81,6 @@ namespace HYDRON.Models
 
         public static explicit operator BigInteger(Atomos atomos) => atomos._atomos;
 
-        // ── Ratio scaling ──────────────────────────────────────────────────────────────────
-
         public Atomos Scale(BigInteger numerator, BigInteger denominator)
         {
             if (numerator < BigInteger.Zero)
@@ -100,32 +94,9 @@ namespace HYDRON.Models
         public Atomos Scale(int numerator, int denominator)
             => Scale(new BigInteger(numerator), new BigInteger(denominator));
 
-        // ── Denomination conversions (display only) ───────────────────────────────────────
-
-        /// <summary>
-        /// Converts a denomination value to its atomos equivalent.
-        /// Uses <see cref="decimal"/> arithmetic (28 significant digits) to avoid the floating-point
-        /// precision loss that occurs with <see cref="double"/> for HYD (10^16) and larger factors.
-        /// The result is rounded to the nearest integer (banker's rounding).
-        /// </summary>
-        public static Atomos FromDenomination(decimal value, Denominations denomination)
-        {
-            if (value < 0m)
-                throw new ArgumentOutOfRangeException(nameof(value), "Denomination value cannot be negative.");
-
-            BigInteger factor = GetFactor(denomination);
-
-            // For HYE (10^32) and HYZ (10^64) the factor exceeds decimal's range (~7.9 * 10^28).
-            // Fall back to double for those two denominations; precision loss is negligible at
-            // that scale since realistic user inputs are tiny (e.g. 0.000001 HYE).
-            if (denomination >= Denominations.Hye)
-                return new Atomos((BigInteger)Math.Round((double)value * (double)factor, MidpointRounding.ToEven));
-
-            // decimal can represent the factor exactly for HYA..HYD (max 10^16 < 7.9e28).
-            decimal factorDecimal = (decimal)factor;
-            decimal atomosDecimal = Math.Round(value * factorDecimal, MidpointRounding.ToEven);
-            return new Atomos((BigInteger)atomosDecimal);
-        }
+        public static Atomos FromDenomination(double value, Denominations denomination) => value < 0
+            ? throw new ArgumentOutOfRangeException(nameof(value), "Denomination value cannot be negative.")
+            : new Atomos((BigInteger)(value * (double)GetFactor(denomination)));
 
         /// <summary>
         /// Returns the value in the given denomination as a <see cref="decimal"/>, rounded to
@@ -157,8 +128,6 @@ namespace HYDRON.Models
             Denominations.Hyz => HyzFactor,
             _ => throw new ArgumentOutOfRangeException(nameof(denomination), "Invalid denomination.")
         };
-
-        // ── Formatting ────────────────────────────────────────────────────────────────────────
 
         public string ToString(string? format, IFormatProvider? formatProvider)
             => _atomos.ToString(format, formatProvider);

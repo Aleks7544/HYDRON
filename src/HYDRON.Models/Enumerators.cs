@@ -12,56 +12,58 @@
 
     public enum Priority
     {
-        Low,
-        Medium,
-        High,
-        Urgent
+        Low = 0,
+        Medium = 1,
+        High = 2,
+        Urgent = 3
     }
 
     public enum TransactionStatus
     {
-        InitiatedBySender,
-        AwaitingReceiverAcceptance,
-        AbortedBySender,
-        AbortedByReceiver,
-        TimedOut,
-        PendingValidation,
-        ConsensusReached,
-        Rejected,
-        Settled
+        InitiatedBySender = 0,
+        AwaitingReceiverAcceptance = 1,
+        AbortedBySender = 2,
+        AbortedByReceiver = 3,
+        TimedOut = 4,
+        PendingValidation = 5,
+        ConsensusReached = 6,
+        Rejected = 7,
+        Settled = 8
     }
 
     public enum ValidationStatus
     {
-        Pending,
-        Confirmed,
-        Rejected
+        Pending = 0,
+        Confirmed = 1,
+        Rejected = 2
     }
 
     public enum ValidatorStatus
     {
-        Active,
-        Inactive,
-        Unreachable,
-        Penalized
+        Active = 0,
+        Inactive = 1,
+        Unreachable = 2,
+        Penalized = 3,
+        Warned = 4,
+        Suspended = 5
     }
 
     public enum ValidatorTier
     {
-        Core,
-        Edge
+        Core = 0,
+        Edge = 1
     }
 
     public enum RewardStatus
     {
-        Pending,
-        Settled
+        Pending = 0,
+        Settled = 1
     }
 
     public enum PrivacyMode
     {
-        Public,
-        HiddenReceiver,
-        FullyPrivate
+        Public = 0,
+        HiddenReceiver = 1,
+        FullyPrivate = 2
     }
 }

@@ -27,8 +27,8 @@ namespace HYDRON.Models
         public BigInteger RejectedTransactionsCount { get; private set; }
         public Atomos TotalTransactionValue { get; private set; }
 
-        private readonly List<Guid> _validationIds = [];
-        public IReadOnlyList<Guid> ValidationIds => _validationIds.AsReadOnly();
+        private readonly HashSet<Guid> _validationIds = [];
+        public IReadOnlySet<Guid> ValidationIds => _validationIds;
 
         public Atomos TotalRewardsEarned { get; private set; }
         public Atomos TotalPenaltyAmount { get; private set; }
@@ -67,11 +67,8 @@ namespace HYDRON.Models
             if (description is not null && Encoding.UTF8.GetByteCount(description) > MaxDescriptionLength)
                 throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} UTF-8 bytes.", nameof(description));
 
-            if (networkEndpointIPv4 is not null)
-                ValidateIPv4(networkEndpointIPv4, nameof(networkEndpointIPv4));
-
-            if (networkEndpointIPv6 is not null)
-                ValidateIPv6(networkEndpointIPv6, nameof(networkEndpointIPv6));
+            ValidateIPv4(networkEndpointIPv4, nameof(networkEndpointIPv4));
+            ValidateIPv6(networkEndpointIPv6, nameof(networkEndpointIPv6));
 
             if (networkEndpointDns is not null && !IsValidDnsName(networkEndpointDns))
                 throw new ArgumentException("Invalid DNS name format.", nameof(networkEndpointDns));
@@ -92,6 +89,7 @@ namespace HYDRON.Models
                 throw new ArgumentException("Stake amount must be greater than zero.", nameof(amount));
 
             StakedAmount += amount;
+            InvalidateStateHash();
 
             if (Status is ValidatorStatus.Penalized or ValidatorStatus.Inactive
                 && StakedAmount >= Atomos.One)
@@ -108,6 +106,7 @@ namespace HYDRON.Models
                 throw new InvalidOperationException("Cannot withdraw more than staked amount.");
 
             StakedAmount -= amount;
+            InvalidateStateHash();
 
             if (StakedAmount < Atomos.One)
                 Status = ValidatorStatus.Inactive;
@@ -116,29 +115,25 @@ namespace HYDRON.Models
         public void RecordVote(bool votedCorrectly)
         {
             TotalVotes++;
-
-            if (votedCorrectly)
-                CorrectVotes++;
+            if (votedCorrectly) CorrectVotes++;
         }
 
         public void RecordValidation(Guid validationId, Atomos transactionAmount)
         {
             if (transactionAmount <= Atomos.Zero)
                 throw new ArgumentException("Transaction amount must be greater than zero.", nameof(transactionAmount));
-            if (_validationIds.Contains(validationId))
+            if (!_validationIds.Add(validationId))
                 throw new InvalidOperationException($"Validation {validationId} has already been recorded.");
 
-            _validationIds.Add(validationId);
             TransactionsValidatedCount++;
             TotalTransactionValue += transactionAmount;
         }
 
         public void RecordRejection(Guid validationId)
         {
-            if (_validationIds.Contains(validationId))
+            if (!_validationIds.Add(validationId))
                 throw new InvalidOperationException($"Validation {validationId} has already been recorded.");
 
-            _validationIds.Add(validationId);
             RejectedTransactionsCount++;
         }
 
@@ -155,6 +150,7 @@ namespace HYDRON.Models
 
             StakedAmount -= actualPenalty;
             TotalPenaltyAmount += actualPenalty;
+            InvalidateStateHash();
 
             if (StakedAmount < Atomos.One)
                 Status = ValidatorStatus.Penalized;
@@ -167,15 +163,29 @@ namespace HYDRON.Models
 
             StakedAmount += rewardAmount;
             TotalRewardsEarned += rewardAmount;
+            InvalidateStateHash();
 
             if (Status is ValidatorStatus.Penalized or ValidatorStatus.Inactive
                 && StakedAmount >= Atomos.One)
                 Status = ValidatorStatus.Active;
         }
 
+        public void Warn()
+        {
+            if (Status == ValidatorStatus.Active)
+                Status = ValidatorStatus.Warned;
+        }
+
+        public void Suspend()
+        {
+            if (Status is ValidatorStatus.Active or ValidatorStatus.Warned)
+                Status = ValidatorStatus.Suspended;
+        }
+
         public bool IsReachable() =>
             Status != ValidatorStatus.Unreachable &&
-            Status != ValidatorStatus.Penalized;
+            Status != ValidatorStatus.Penalized &&
+            Status != ValidatorStatus.Suspended;
 
         public void MarkUnreachable()
         {
@@ -206,11 +216,8 @@ namespace HYDRON.Models
             if (networkEndpointIPv4 is null && networkEndpointIPv6 is null && networkEndpointDns is null)
                 throw new ArgumentException("At least one network endpoint must be provided.");
 
-            if (networkEndpointIPv4 is not null)
-                ValidateIPv4(networkEndpointIPv4, nameof(networkEndpointIPv4));
-
-            if (networkEndpointIPv6 is not null)
-                ValidateIPv6(networkEndpointIPv6, nameof(networkEndpointIPv6));
+            ValidateIPv4(networkEndpointIPv4, nameof(networkEndpointIPv4));
+            ValidateIPv6(networkEndpointIPv6, nameof(networkEndpointIPv6));
 
             if (networkEndpointDns is not null && !IsValidDnsName(networkEndpointDns))
                 throw new ArgumentException("Invalid DNS name format.", nameof(networkEndpointDns));
@@ -220,7 +227,39 @@ namespace HYDRON.Models
             NetworkEndpointDns = networkEndpointDns ?? NetworkEndpointDns;
         }
 
-        public Atomos GetVotingWeight() => StakedAmount;
+        public Atomos GetVotingWeight() =>
+            Status is ValidatorStatus.Penalized or ValidatorStatus.Suspended
+                ? Atomos.Zero
+                : StakedAmount;
+
+        public void UpdateTier(ValidatorTier tier)
+        {
+            Tier = tier;
+            InvalidateStateHash();
+        }
+
+        protected override void AppendExtraHashFields(StringBuilder sb)
+        {
+            sb.Append('|').Append(StakedAmount)
+              .Append('|').Append(Tier)
+              .Append('|').Append(Status);
+        }
+
+        private static void ValidateIPv4(string? address, string paramName)
+        {
+            if (address is null) return;
+            if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
+                parsed.AddressFamily != AddressFamily.InterNetwork)
+                throw new ArgumentException("Invalid IPv4 address format.", paramName);
+        }
+
+        private static void ValidateIPv6(string? address, string paramName)
+        {
+            if (address is null) return;
+            if (!IPAddress.TryParse(address, out IPAddress? parsed) ||
+                parsed.AddressFamily != AddressFamily.InterNetworkV6)
+                throw new ArgumentException("Invalid IPv6 address format.", paramName);
+        }
 
         private static void ValidateIPv4(string address, string paramName)
         {
@@ -244,12 +283,9 @@ namespace HYDRON.Models
             string[] labels = dns.Split('.');
             foreach (string label in labels)
             {
-                if (label.Length is 0 or > 63)
-                    return false;
-                if (!label.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'))
-                    return false;
-                if (label.StartsWith('-') || label.EndsWith('-'))
-                    return false;
+                if (label.Length is 0 or > 63) return false;
+                if (!label.All(c => char.IsAsciiLetterOrDigit(c) || c == '-')) return false;
+                if (label.StartsWith('-') || label.EndsWith('-')) return false;
             }
 
             return true;
