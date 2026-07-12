@@ -50,8 +50,6 @@
                 throw new InvalidOperationException("Validation must be signed before it can be confirmed.");
             if (Status != ValidationStatus.Pending)
                 throw new InvalidOperationException($"Cannot confirm validation with status {Status}.");
-            if (ValidationSignature is null)
-                throw new InvalidOperationException("Validation must be signed before it can be confirmed.");
             if (validationSpeedMs < 0)
                 throw new ArgumentException("Validation speed cannot be negative.", nameof(validationSpeedMs));
 
@@ -66,8 +64,6 @@
                 throw new InvalidOperationException("Validation must be signed before it can be rejected.");
             if (Status != ValidationStatus.Pending)
                 throw new InvalidOperationException($"Cannot reject validation with status {Status}.");
-            if (ValidationSignature is null)
-                throw new InvalidOperationException("Validation must be signed before it can be rejected.");
             if (validationSpeedMs < 0)
                 throw new ArgumentException("Validation speed cannot be negative.", nameof(validationSpeedMs));
 

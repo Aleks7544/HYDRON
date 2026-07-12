@@ -22,8 +22,10 @@ namespace HYDRON.Models
         public BigInteger RejectedTransactionsCount { get; private set; }
         public Atomos TotalTransactionValue { get; private set; }
 
-        private readonly HashSet<Guid> _validationIds = [];
-        public IReadOnlySet<Guid> ValidationIds => _validationIds;
+        private readonly HashSet<Guid> _confirmedValidationIds = [];
+        private readonly HashSet<Guid> _rejectedValidationIds = [];
+        public IReadOnlySet<Guid> ConfirmedValidationIds => _confirmedValidationIds;
+        public IReadOnlySet<Guid> RejectedValidationIds => _rejectedValidationIds;
 
         public Atomos TotalRewardsEarned { get; private set; }
         public Atomos TotalPenaltyAmount { get; private set; }
@@ -117,16 +119,17 @@ namespace HYDRON.Models
         {
             if (transactionAmount <= Atomos.Zero)
                 throw new ArgumentException("Transaction amount must be greater than zero.", nameof(transactionAmount));
-            if (!_validationIds.Add(validationId))
+            if (_confirmedValidationIds.Contains(validationId) || _rejectedValidationIds.Contains(validationId))
                 throw new InvalidOperationException($"Validation {validationId} has already been recorded.");
 
+            _confirmedValidationIds.Add(validationId);
             TransactionsValidatedCount++;
             TotalTransactionValue += transactionAmount;
         }
 
         public void RecordRejection(Guid validationId)
         {
-            if (!_validationIds.Add(validationId))
+            if (_confirmedValidationIds.Contains(validationId) || !_rejectedValidationIds.Add(validationId))
                 throw new InvalidOperationException($"Validation {validationId} has already been recorded.");
 
             RejectedTransactionsCount++;

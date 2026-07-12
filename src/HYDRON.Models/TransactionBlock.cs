@@ -13,6 +13,7 @@ namespace HYDRON.Models
         public string StateRoot { get; private set; }
 
         private bool _sealed;
+        private readonly Lock _writeLock = new();
 
         private readonly List<Transaction> _transactions = [];
         public IReadOnlyList<Transaction> Transactions => _transactions.AsReadOnly();
@@ -43,74 +44,90 @@ namespace HYDRON.Models
         public void AddTransaction(Transaction transaction)
         {
             ArgumentNullException.ThrowIfNull(transaction);
-
-            if (_sealed)
-                throw new InvalidOperationException("Cannot add transactions to a sealed block.");
             if (!transaction.IsFinalized)
                 throw new InvalidOperationException("Only finalized transactions may be added to a block.");
             if (string.IsNullOrEmpty(transaction.Hash))
                 throw new InvalidOperationException("Transaction must have a hash set before being added to a block.");
             if (!transaction.IsSignedByReceiver())
                 throw new InvalidOperationException("Transaction requires receiver confirmation that has not been provided.");
-            if (_transactions.Any(t => t.Hash == transaction.Hash))
-                throw new InvalidOperationException($"Transaction {transaction.Hash} is already in this block.");
 
-            _transactions.Add(transaction);
+            lock (_writeLock)
+            {
+                if (_sealed)
+                    throw new InvalidOperationException("Cannot add transactions to a sealed block.");
+                if (_transactions.Any(t => t.Hash == transaction.Hash))
+                    throw new InvalidOperationException($"Transaction {transaction.Hash} is already in this block.");
+
+                _transactions.Add(transaction);
+            }
         }
 
         public void Seal(string hash, string merkleRoot, string stateRoot)
         {
-            if (_sealed)
-                throw new InvalidOperationException("Block has already been sealed.");
             if (string.IsNullOrWhiteSpace(hash))
                 throw new ArgumentException("Hash cannot be null or empty.", nameof(hash));
             if (string.IsNullOrWhiteSpace(merkleRoot))
                 throw new ArgumentException("Merkle root cannot be null or empty.", nameof(merkleRoot));
             if (string.IsNullOrWhiteSpace(stateRoot))
                 throw new ArgumentException("State root cannot be null or empty.", nameof(stateRoot));
-            if (_transactions.Count == 0)
-                throw new InvalidOperationException("Cannot seal an empty block.");
 
-            Hash = hash;
-            MerkleRoot = merkleRoot;
-            StateRoot = stateRoot;
-            _sealed = true;
+            lock (_writeLock)
+            {
+                if (_sealed)
+                    throw new InvalidOperationException("Block has already been sealed.");
+                if (_transactions.Count == 0)
+                    throw new InvalidOperationException("Cannot seal an empty block.");
+
+                Hash = hash;
+                MerkleRoot = merkleRoot;
+                StateRoot = stateRoot;
+                _sealed = true;
+            }
         }
 
         public void SetHash(string hash)
         {
-            if (_sealed)
-                throw new InvalidOperationException("Block has already been sealed.");
-            if (!string.IsNullOrEmpty(Hash))
-                throw new InvalidOperationException("Block hash has already been set and cannot be changed.");
             if (string.IsNullOrWhiteSpace(hash))
                 throw new ArgumentException("Hash cannot be null or empty.", nameof(hash));
 
-            Hash = hash;
+            lock (_writeLock)
+            {
+                if (_sealed)
+                    throw new InvalidOperationException("Block has already been sealed.");
+                if (!string.IsNullOrEmpty(Hash))
+                    throw new InvalidOperationException("Block hash has already been set and cannot be changed.");
+                Hash = hash;
+            }
         }
 
         public void SetMerkleRoot(string merkleRoot)
         {
-            if (_sealed)
-                throw new InvalidOperationException("Block has already been sealed.");
-            if (!string.IsNullOrEmpty(MerkleRoot))
-                throw new InvalidOperationException("Merkle root has already been set and cannot be changed.");
-            if (string.IsNullOrWhiteSpace(merkleRoot))
-                throw new ArgumentException("Merkle root cannot be null or empty.", nameof(merkleRoot));
+            lock (_writeLock)
+            {
+                if (_sealed)
+                    throw new InvalidOperationException("Block has already been sealed.");
+                if (!string.IsNullOrEmpty(MerkleRoot))
+                    throw new InvalidOperationException("Merkle root has already been set and cannot be changed.");
+                if (string.IsNullOrWhiteSpace(merkleRoot))
+                    throw new ArgumentException("Merkle root cannot be null or empty.", nameof(merkleRoot));
 
-            MerkleRoot = merkleRoot;
+                MerkleRoot = merkleRoot;
+            }
         }
 
         public void SetStateRoot(string stateRoot)
         {
-            if (_sealed)
-                throw new InvalidOperationException("Block has already been sealed.");
-            if (!string.IsNullOrEmpty(StateRoot))
-                throw new InvalidOperationException("State root has already been set and cannot be changed.");
-            if (string.IsNullOrWhiteSpace(stateRoot))
-                throw new ArgumentException("State root cannot be null or empty.", nameof(stateRoot));
+            lock (_writeLock)
+            {
+                if (_sealed)
+                    throw new InvalidOperationException("Block has already been sealed.");
+                if (!string.IsNullOrEmpty(StateRoot))
+                    throw new InvalidOperationException("State root has already been set and cannot be changed.");
+                if (string.IsNullOrWhiteSpace(stateRoot))
+                    throw new ArgumentException("State root cannot be null or empty.", nameof(stateRoot));
 
-            StateRoot = stateRoot;
+                StateRoot = stateRoot;
+            }
         }
 
         public bool IsValid() =>

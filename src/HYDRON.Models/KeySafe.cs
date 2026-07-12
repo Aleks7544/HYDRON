@@ -53,14 +53,14 @@ namespace HYDRON.Models
             IsStealthSubAccount = false;
         }
 
-        private KeySafe(byte[] ed25519PrivateKey, bool isStealthSubAccount)
+        private KeySafe(byte[] ed25519PrivateKey, byte[] hdChainCode, bool isStealthSubAccount)
         {
             if (!isStealthSubAccount)
                 throw new ArgumentException("Use the public constructor for full KeySafe creation.");
 
             _ed25519PrivateKey = ed25519PrivateKey;
+            _hdChainCode = hdChainCode;
             _x25519Key = null;
-            _hdChainCode = [];
 
             PublicKey = DeriveEd25519PublicKey(ed25519PrivateKey);
             StealthPublicKey = null;
@@ -119,8 +119,9 @@ namespace HYDRON.Models
             byte[] hmac = HMACSHA512.HashData(_hdChainCode, data);
 
             byte[] childPrivateKey = hmac[..32];
+            byte[] childChainCode = hmac[32..];
 
-            return new KeySafe(childPrivateKey, isStealthSubAccount: true);
+            return new KeySafe(childPrivateKey, childChainCode, isStealthSubAccount: true);
         }
 
         public (string ephemeralPublicKey, string stealthAddress) ComputeStealthPayment(
@@ -177,13 +178,9 @@ namespace HYDRON.Models
                 throw new ArgumentException("Ephemeral public key cannot be null or empty.", nameof(ephemeralPublicKey));
 
             byte[] sharedSecret = ComputeX25519SharedSecret(_x25519Key, Convert.FromBase64String(ephemeralPublicKey));
-            byte[] sharedSecretHash = SHA256.HashData(sharedSecret);
+            byte[] stealthSpendKey = HMACSHA256.HashData("HYDRON stealth spend"u8.ToArray(), sharedSecret);
 
-            byte[] stealthSpendKey = new byte[32];
-            for (int i = 0; i < 32; i++)
-                stealthSpendKey[i] = (byte)(sharedSecretHash[i] ^ _ed25519PrivateKey[i]);
-
-            return new KeySafe(stealthSpendKey, isStealthSubAccount: true);
+            return new KeySafe(stealthSpendKey, hdChainCode: [], isStealthSubAccount: true);
         }
 
         public string RotateStealthKeyPair()

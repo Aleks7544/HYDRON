@@ -22,10 +22,10 @@
     {
         InitiatedBySender = 0,
         AwaitingReceiverAcceptance = 1,
-        AbortedBySender = 2,
-        AbortedByReceiver = 3,
-        TimedOut = 4,
-        PendingValidation = 5,
+        PendingValidation = 2,
+        AbortedBySender = 3,
+        AbortedByReceiver = 4,
+        TimedOut = 5,
         ConsensusReached = 6,
         Rejected = 7,
         Settled = 8

@@ -177,9 +177,9 @@ namespace HYDRON.Models
                 throw new InvalidOperationException("Block number has already been assigned.");
             if (blockNumber < BigInteger.Zero)
                 throw new ArgumentException("Block number cannot be negative.", nameof(blockNumber));
-            if (Status != TransactionStatus.ConsensusReached && Status != TransactionStatus.Settled)
+            if (Status != TransactionStatus.Settled)
                 throw new InvalidOperationException(
-                    $"Block number can only be assigned when status is {TransactionStatus.ConsensusReached} or {TransactionStatus.Settled}. Current status: {Status}.");
+                    $"Block number can only be assigned when status is {TransactionStatus.Settled}. Current status: {Status}.");
 
             TransactionBlockNumber = blockNumber;
         }

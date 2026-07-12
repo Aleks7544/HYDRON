@@ -61,8 +61,9 @@ namespace HYDRON.Models
             {
                 if (_balance < amount) return false;
                 _balance -= amount;
+                InvalidateStateHash();
             }
-            InvalidateStateHash();
+            
             return true;
         }
 
@@ -71,8 +72,9 @@ namespace HYDRON.Models
             lock (_balanceLock)
             {
                 _balance += amount;
+                InvalidateStateHash();
             }
-            InvalidateStateHash();
+            
         }
 
         public void IncrementNonce()
