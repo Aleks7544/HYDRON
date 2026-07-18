@@ -1,7 +1,7 @@
 # HYDRON Phase 1 — Task State & Progress
 
-**Last Updated:** June 27, 2026  
-**Format:** Area-based, reflects actual repository state as of last commit (`bb97ae0`)
+**Last Updated:** July 18, 2026  
+**Format:** Area-based, reflects actual repository state as of last commit (`224e17f`)
 
 ---
 
@@ -9,8 +9,8 @@
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ | Complete and audited — known open issues addressed |
-| 🔶 | Structurally present but carries known defects from audit |
+| ✅ | Complete and audited — all known issues addressed |
+| 🔶 | Structurally present but carries known defects |
 | 🔲 | Not started |
 | 🏗️ | Project stub exists (`.csproj` + placeholder), no real logic yet |
 
@@ -20,28 +20,22 @@
 
 ### 1.1 Data Models (`HYDRON.Models`)
 
-- ✅ **1.1.1** `Atomos` — physics-pegged currency value type; 6 denominations (HYA→HYZ); full arithmetic operator set; `IComparable<Atomos>`, `IEquatable<Atomos>`; denomination conversion helpers
-- ✅ **1.1.2** `Account` — user account state; balance management; nonce; handle; stealth public key; SHA-256 state hash with invalidation cache; validator subclass support
-- ✅ **1.1.3** `Transaction` — transfer primitive; privacy modes (`Public`, `HiddenReceiver`, `FullyPrivate`); sender/receiver signature tracking; validator assignment & supermajority threshold; status lifecycle with valid-transition guard; fee; priority; block number assignment; finalization
-- ✅ **1.1.4** `Validator` — validator account; staking/withdrawal; reputation score; correct/total vote counters; penalty application; tier (`Core`/`Edge`); status (`Active`/`Warned`/`Suspended`/`Penalized`/`Inactive`/`Unreachable`); network endpoint management (IPv4, IPv6, DNS, Tor)
-- ✅ **1.1.5** `Validation` — per-validator vote record; approve/reject/confirm/dispute/penalize lifecycle; Ed25519 signature field; reward assignment; speed tracking
-- ✅ **1.1.6** `TransactionBlock` — 100-TX block structure; Merkle root & state root slots; previous-hash chaining; validator address; block number; `IsValid()` check
-- ✅ **1.1.7** `Rewards` — `BlockReward` + `ValidatorReward` records; per-TX (1 HYA), per-block (1 HYB), per-state-block (1 HYG) reward constants; fee reward; settlement status
-- ✅ **1.1.8** `KeySafe` — HD wallet (BIP-32-style Ed25519 + X25519); HMAC-SHA-512 child derivation; stealth payment (`ComputeStealthPayment` / `ScanForStealthPayments`); key rotation; `IDisposable` with zeroing; sub-account construction
+- ✅ **1.1.1** `Atomos` — physics-pegged currency value type; 6 denominations (HYA→HYZ); full arithmetic operator set; `IComparable<Atomos>`, `IEquatable<Atomos>`; denomination conversion helpers; `BigInteger`-backed to eliminate precision loss at large denominations (Hyd+)
+- ✅ **1.1.2** `Account` — user account state; balance management with `Lock` for thread-safe mutations; nonce (thread-safe via `_balanceLock`); handle; stealth public key; SHA-256 state hash with lock-protected invalidation cache
+- ✅ **1.1.3** `Transaction` — transfer primitive; privacy modes (`Public`, `HiddenReceiver`, `FullyPrivate`); sender/receiver signature tracking; validator assignment & supermajority threshold (minimum 1); frozen validator count guard; status lifecycle with valid-transition map; fee; priority; block number assignment; finalization; `AddValidator` guard changed from enum-order comparison to `_frozenValidatorCount.HasValue`
+- ✅ **1.1.4** `Validator` — validator account; staking/withdrawal; reputation score; correct/total vote counters; penalty application; tier (`Core`/`Edge`); status (`Active`/`Warned`/`Suspended`/`Penalized`/`Inactive`/`Unreachable`); network endpoint validation (IPv4/IPv6 address-family verified); separate `_confirmedValidationIds` / `_rejectedValidationIds` sets to prevent cross-track collisions; `ReceiveReward` blocks penalized validators and only restores `Inactive`; `GetVotingWeight` returns zero for `Penalized` and `Suspended`
+- ✅ **1.1.5** `Validation` — per-validator vote record; sign-before-confirm/reject enforced; `Penalize` works on both `Confirmed` and `Rejected` outcomes; reward assignment; speed tracking
+- ✅ **1.1.6** `TransactionBlock` — 100-TX block structure; `Lock`-protected `Seal` and `AddTransaction`; individual `SetHash`/`SetMerkleRoot`/`SetStateRoot` setters (note: redundant with `Seal` — see open items below); previous-hash chaining; `IsValid()` check
+- ✅ **1.1.7** `Rewards` — `BlockReward` + `ValidatorReward` records; `TotalMinted` excludes fee rewards (fees are paid, not minted); `ValidatorReward.TotalReward` = blockReward + validationReward + feeReward; settlement status
+- ✅ **1.1.8** `KeySafe` — HD wallet (BIP-32-style Ed25519 + X25519); HMAC-SHA-512 child key derivation — both key and chain code stored; stealth spend key derived via HMAC-SHA-256 with label `"HYDRON stealth spend"` (no XOR with master key); stealth payment (`ComputeStealthPayment` / `IsStealthPaymentMine`); key rotation; `IDisposable` with `CryptographicOperations.ZeroMemory`; all export methods guard disposed state
 - ✅ **1.1.9** `ValidatorRank` — ranking snapshot record; normalized reputation, uptime, speed, stake fields; tier classification
-- ✅ **1.1.10** `ValidatorsCapacity` — per-validator capacity snapshot; staked amount, avg speed, uptime score, block observation count, computed-at timestamp
-- ✅ **1.1.11** `Enumerators` — all domain enums: `TransactionStatus`, `ValidationStatus`, `ValidatorStatus`, `ValidatorTier`, `Priority`, `PrivacyMode`, `RewardStatus`
+- ✅ **1.1.10** `Enumerators` — all domain enums: `TransactionStatus`, `ValidationStatus`, `ValidatorStatus`, `ValidatorTier`, `Priority`, `PrivacyMode`, `RewardStatus`
 
-### Known open defects in completed models (from audit — must fix before moving to Phase 2)
+### Open items in completed models (low severity — address before Phase 2 service layer)
 
-- 🔶 `Atomos` — `FromDenomination`/`ToDenomination` use `double` for large denominations (Hyd+), causing precision loss
-- 🔶 `Account` — balance mutations (`TryDeductBalance`, `AddBalance`) are not atomic under concurrent access; state hash excludes validator-specific fields
-- 🔶 `Transaction` — zero-validator consensus threshold possible; `RemoveValidator` allowed post-freeze; `AssignBlockNumber` is re-entrant; minimum fee (1 HYD) not enforced
-- 🔶 `Validation` — `Confirm()` and `Reject()` do not require a signature to be present; zero-amount penalties accepted
-- 🔶 `Validator` — IPv4/IPv6 field validation uses `IPAddress.TryParse` without address-family check; duplicate validation/rejection IDs not guarded; `GetVotingWeight()` non-zero for penalized validators
-- 🔶 `KeySafe` — child derivation is unhardened (uses public key in HMAC data); `Dispose()` does not zero raw byte arrays; disposed-instance access not fully guarded in export methods
-- 🔶 `ValidatorsCapacity` — all properties are fully mutable (`{ get; set; }`); `ValidatorAddress` and `Validator.Address` can diverge silently; `ValidationActivityCount` is `long` while validator uses `BigInteger`
-- 🔶 `Enumerators` — all enums use implicit integer values (serialization fragility)
+- 🔶 `TransactionBlock` — `SetHash`, `SetMerkleRoot`, `SetStateRoot` individual setters are redundant alongside `Seal` and create an inconsistent two-phase write path. Either remove the individual setters and mandate `Seal`, or remove `Seal` and enforce the individual setters. Having both is a footgun.
+- 🔶 `Account` — `IncrementNonce` is not guarded by `_balanceLock`; concurrent calls from two threads can lose an increment. Wrap in `lock (_balanceLock)` before service layer is built.
+- 🔶 `Enumerators` — enum members use implicit integer values; reordering during refactoring will silently break any serialized data. Assign explicit values before the database layer lands.
 
 ### 1.2 Database Layer (`HYDRON.Database`)
 
@@ -60,10 +54,10 @@
 ### 1.3 Cryptography (`HYDRON.Cryptography`)
 
 - 🏗️ Project stub exists
-- 🔲 **1.3.1** `HashProvider` — SHA-256 canonical hasher for transactions, blocks, and state roots (replaces externally-injected hash strings)
-- 🔲 **1.3.2** `MerkleTree` — binary Merkle tree builder from transaction hash list; produces canonical root that `TransactionBlock.SetMerkleRoot()` accepts
-- 🔲 **1.3.3** `SignatureVerifier` — Ed25519 verify wrapper used by services (decoupled from `KeySafe` which is wallet-side only)
-- 🔲 **1.3.4** `CryptoConstants` — system-wide crypto parameter definitions (key sizes, hash output lengths, HMAC algorithm identifiers)
+- 🔲 **1.3.1** `HashProvider` — SHA-256 canonical hasher for transactions, blocks, and state roots
+- 🔲 **1.3.2** `MerkleTree` — binary Merkle tree builder from transaction hash list; produces root accepted by `TransactionBlock.Seal()`
+- 🔲 **1.3.3** `SignatureVerifier` — Ed25519 verify wrapper used by services (decoupled from `KeySafe`)
+- 🔲 **1.3.4** `CryptoConstants` — system-wide crypto parameter definitions
 
 ### 1.4 Configuration & Bootstrapping (`HYDRON.Core`)
 
@@ -72,24 +66,24 @@
 - 🔲 **1.4.2** Strongly-typed `HydronConfig` class
 - 🔲 **1.4.3** DI service registry (`IServiceCollection` extensions)
 - 🔲 **1.4.4** `HydronEngine` — main bootstrap; wires DB, crypto, network, validator, RPC
-- 🔲 **1.4.5** `SystemConstants` — reward amounts, block sizes, consensus threshold (2/3), minimum fee (1 HYD), immutability window (100 blocks), physics constant (13.6 eV)
+- 🔲 **1.4.5** `SystemConstants` — reward amounts (1 HYA/TX, 1 HYB/block, 1 HYG/state-block), block sizes (100 TX, 100 blocks), consensus threshold (2/3), minimum fee (1 HYD), immutability window (100 blocks), physics constant (13.6 eV)
 
 ### 1.5 Error Handling & Logging
 
-- 🔲 **1.5.1** Custom exception hierarchy (`HydronException`, `ConsensusException`, `InsufficientFundsException`, `InvalidTransactionException`, `CryptographyException`, etc.)
+- 🔲 **1.5.1** Custom exception hierarchy (`HydronException`, `ConsensusException`, `InsufficientFundsException`, `InvalidTransactionException`, `CryptographyException`)
 - 🔲 **1.5.2** Structured error codes & result types (`Result<T, HydronError>` pattern to replace throw-everywhere)
 - 🔲 **1.5.3** `IHydronLogger` abstraction
 - 🔲 **1.5.4** Structured logging via `Microsoft.Extensions.Logging` with context enrichment (block number, validator address, TX hash)
 
-### 1.6 Unit Tests (`HYDRON.Tests` — new project needed)
+### 1.6 Unit Tests (`HYDRON.Tests`)
 
 - 🔲 **1.6.1** `AtomosTests` — arithmetic, denomination conversion, overflow, equality, comparison
 - 🔲 **1.6.2** `AccountTests` — balance mutations under concurrency, state hash, nonce increment, handle validation
-- 🔲 **1.6.3** `TransactionTests` — status lifecycle, supermajority threshold, signature requirements, finalization, fee guard
-- 🔲 **1.6.4** `ValidationTests` — confirm/reject signature requirement, penalty guard, reward assignment
-- 🔲 **1.6.5** `ValidatorTests` — staking, penalty, voting weight, endpoint validation, reachability
-- 🔲 **1.6.6** `KeySafeTests` — derivation, stealth payment round-trip, rotation, disposal safety
-- 🔲 **1.6.7** `TransactionBlockTests` — block validity, capacity, hash chaining
+- 🔲 **1.6.3** `TransactionTests` — status lifecycle, supermajority threshold, frozen validator guard, signature requirements, finalization
+- 🔲 **1.6.4** `ValidationTests` — sign-before-confirm, penalize on both Confirmed and Rejected, reward assignment
+- 🔲 **1.6.5** `ValidatorTests` — staking, penalty, voting weight, endpoint validation, reachability, reward block on Penalized
+- 🔲 **1.6.6** `KeySafeTests` — child derivation (key + chain code), stealth payment round-trip, HMAC spend key derivation, rotation, disposal safety
+- 🔲 **1.6.7** `TransactionBlockTests` — block validity, capacity, hash chaining, lock behaviour
 
 ---
 
@@ -99,9 +93,8 @@
 
 - 🔲 **2.1.1** `AccountService` — load/save via repository; create new account
 - 🔲 **2.1.2** Balance check queries (thread-safe read)
-- 🔲 **2.1.3** Atomic balance deduction with lock (fix for audit defect AC-6)
-- 🔲 **2.1.4** Nonce reservation & verification (prevent double-spend at service layer)
-- 🔲 **2.1.5** Reward/penalty application from settled block
+- 🔲 **2.1.3** Nonce reservation & verification (prevent double-spend at service layer)
+- 🔲 **2.1.4** Reward/penalty application from settled block
 
 ### 2.2 Transaction Processing
 
@@ -111,7 +104,7 @@
 - 🔲 **2.2.4** Nonce ordering check (sender nonce must equal account nonce + 1)
 - 🔲 **2.2.5** Fee validation — minimum 1 HYD enforced at service layer
 - 🔲 **2.2.6** Double-spend prevention via nonce reservation in mempool
-- 🔲 **2.2.7** Transaction status lifecycle orchestration (Pending → PendingValidation → ConsensusReached → Settled)
+- 🔲 **2.2.7** Transaction status lifecycle orchestration (InitiatedBySender → PendingValidation → ConsensusReached → Settled)
 - 🔲 **2.2.8** Transaction queries (by hash, by sender, by status, by block number)
 
 ---
@@ -138,9 +131,9 @@
 - 🔲 **3.2.6** First-validator veto gate — first validator's vote must be `Approved` before supermajority is counted
 - 🔲 **3.2.7** Auto-finalization when 66%+ approve; auto-rejection when majority reject
 
-### 3.3 Validator Ranking (`HYDRON.Validator` service layer)
+### 3.3 Validator Ranking
 
-- 🔲 **3.3.1** `ValidatorRankingService` — computes `ValidatorRank` for each active validator (extracted from models per commit `1d1c2e5`)
+- 🔲 **3.3.1** `ValidatorRankingService` — computes `ValidatorRank` for each active validator
 - 🔲 **3.3.2** Normalized scoring: reputation, uptime, avg speed, stake weight
 - 🔲 **3.3.3** Tier assignment thresholds (`Core` vs `Edge` cutoffs)
 - 🔲 **3.3.4** Ranking cache with TTL; `ValidatorsCapacity` snapshot generation
@@ -156,12 +149,12 @@
 
 - 🔲 **3.5.1** Invalid approval penalty: `−100 × TX amount` deducted from validator stake
 - 🔲 **3.5.2** Valid rejection penalty: `−1 × TX amount` deducted from validator stake
-- 🔲 **3.5.3** Penalty application keeps `Validation` and `Validator` in sync (fix for audit defect V-7)
+- 🔲 **3.5.3** Penalty application keeps `Validation` and `Validator` in sync
 - 🔲 **3.5.4** `Suspended` or `Penalized` validators removed from active assignment pool
 
 ---
 
-## 4. Block System (`HYDRON.Core` / `HYDRON.Validator` services)
+## 4. Block System
 
 ### 4.1 TransactionBlock
 
@@ -175,7 +168,7 @@
 
 - 🔲 **4.2.1** `StateBlock` model — wraps 100 `TransactionBlock`s; electricity price; state root; immutability flag
 - 🔲 **4.2.2** `StateBlockBuilder` — assembles from 100 confirmed TransactionBlocks
-- 🔲 **4.2.3** State root = SHA-256 of all account state hashes (Patricia-trie or sorted-hash approach)
+- 🔲 **4.2.3** State root = SHA-256 of all account state hashes (sorted-hash approach)
 - 🔲 **4.2.4** Electricity price embedded at state block boundary (from oracle consensus)
 - 🔲 **4.2.5** `IBlockRepository` read/write for StateBlocks
 - 🔲 **4.2.6** Immutability enforcement: `IsImmutable = true` after 100-StateBlock depth
@@ -189,29 +182,28 @@
 
 ---
 
-## 5. Rewards System (`HYDRON.Core` service)
+## 5. Rewards System
 
 ### 5.1 Reward Calculation
 
-- 🔲 **5.1.1** `RewardCalculator` service — deterministically computes `BlockReward` from block contents (replaces externally-supplied reward numbers)
+- 🔲 **5.1.1** `RewardCalculator` service — deterministically computes `BlockReward` from block contents
 - 🔲 **5.1.2** Per-TX core reward: 1 HYA (100 atomos) per finalized transaction
 - 🔲 **5.1.3** Per-TransactionBlock reward: 1 HYB (10,000 atomos) split among block validators
 - 🔲 **5.1.4** Per-StateBlock reward: 1 HYG (100,000,000 atomos) split among state-block validators
 - 🔲 **5.1.5** Reward multiplier application based on validator reputation tier
-- 🔲 **5.1.6** Consistency check: sum of `ValidatorReward.TotalReward` must equal `BlockReward` totals
+- 🔲 **5.1.6** Consistency check: sum of `ValidatorReward.TotalReward` must equal `BlockReward` totals (excluding fees)
 
 ### 5.2 Fee Handling
 
 - 🔲 **5.2.1** Fee collection from sender balance at transaction ingest
 - 🔲 **5.2.2** Fee distribution to first validator only (per protocol spec)
 - 🔲 **5.2.3** Minimum fee enforcement: 1 HYD (10^16 atomos) at service layer
-- 🔲 **5.2.4** Fee market: future enhancement — dynamic fee floor based on mempool congestion
 
 ---
 
 ## 6. Electricity Price Oracle (`HYDRON.Connectivity`)
 
-- 🏗️ Project stub exists (`HYDRON.Connectivity`)
+- 🏗️ Project stub exists
 
 ### 6.1 Data Sources
 
@@ -243,7 +235,7 @@
 ### 7.1 Transport
 
 - 🔲 **7.1.1** TCP listener & outbound connection management
-- 🔲 **7.1.2** TLS-over-TCP with Ed25519 peer identity (reuse validator key for peer auth)
+- 🔲 **7.1.2** TLS-over-TCP with Ed25519 peer identity
 - 🔲 **7.1.3** Peer discovery — bootstrap nodes + DHT (Kademlia-style)
 - 🔲 **7.1.4** Connection pool with max-peer cap and backpressure
 - 🔲 **7.1.5** Peer metadata tracking (address, port, latency, last-seen, validator flag)
@@ -254,7 +246,7 @@
 - 🔲 **7.2.2** Message types: `TxBroadcast`, `ValidationVote`, `BlockProposal`, `OraclePriceProposal`, `PeerHandshake`, `PeerPing`
 - 🔲 **7.2.3** JSON or MessagePack serialization (decision pending benchmark)
 - 🔲 **7.2.4** Gossip fan-out for transaction and block propagation
-- 🔲 **7.2.5** Deduplication: seen-message cache (LRU by hash) to prevent re-broadcast loops
+- 🔲 **7.2.5** Deduplication: seen-message cache (LRU by hash)
 
 ### 7.3 Reliability
 
@@ -265,7 +257,7 @@
 
 ---
 
-## 8. RPC API (`HYDRON.Core` / HTTP layer)
+## 8. RPC API
 
 ### 8.1 Wallet & Transfer Methods
 
@@ -306,7 +298,7 @@
 
 ## 9. Testing & Quality
 
-### 9.1 Unit Tests (see §1.6 for model-layer tests)
+### 9.1 Unit Tests
 
 - 🔲 **9.1.1** `RewardCalculatorTests`
 - 🔲 **9.1.2** `MerkleTreeTests`
@@ -330,12 +322,6 @@
 - 🔲 **9.3.3** Consensus failure scenarios: <66% approval, validator dropout
 - 🔲 **9.3.4** Penalty scenarios: invalid approval, valid rejection
 - 🔲 **9.3.5** Finality depth and immutability window enforcement
-
-### 9.4 Code Quality
-
-- 🔲 **9.4.1** Audit defect resolution checklist (see `docs/Audit Findings.md`)
-- 🔲 **9.4.2** Performance benchmarks (Atomos arithmetic, TX throughput, Merkle computation)
-- 🔲 **9.4.3** Memory profiling (especially `KeySafe` disposal and `BigInteger` allocation hot paths)
 
 ---
 
@@ -366,14 +352,14 @@
 
 ## Status Summary
 
-**Last commit:** `bb97ae0` — "Corrected some logic gaps" (June 13, 2026)
+**Last commit:** `224e17f` — "Small refactoring of the code." (July 12, 2026)
 
 | Area | Status |
 |------|--------|
-| Data Models (11 classes) | 🔶 Structurally complete; audit defects pending resolution |
+| Data Models (10 classes) | ✅ Complete — all critical audit defects resolved |
 | Database Layer | 🏗️ Stub only |
 | Cryptography services | 🏗️ Stub only |
-| Core bootstrapping | 🏗️ Stub only |
+| Core bootstrapping & constants | 🏗️ Stub only |
 | Validator services | 🏗️ Stub only |
 | Connectivity / Oracle | 🏗️ Stub only |
 | Network / P2P | 🏗️ Stub only |
@@ -382,9 +368,38 @@
 | Integration tests | 🔲 Not started |
 | Deployment / Docs | 🔲 Not started |
 
-**Immediate next priorities:**
-1. Resolve critical audit defects in `Atomos`, `Account`, `Transaction`, `Validation`, `KeySafe` before building any service layer on top of them
-2. Implement `HYDRON.Cryptography` — `HashProvider`, `MerkleTree`, `SignatureVerifier` (unblocks block validity and end-to-end TX verification)
-3. Implement `SystemConstants` (unblocks reward calculation and fee enforcement)
-4. Write model-layer unit tests (§1.6) to lock in invariants before service wiring begins
-5. Implement database layer (§1.2) to enable persistence for integration testing
+---
+
+## Immediate Next Priorities (Phase 2 entry gate)
+
+### Step 1 — Close remaining model-layer open items (1–2 days)
+1. Assign explicit integer values to all enums in `Enumerators.cs` (serialization safety before DB layer)
+2. Wrap `IncrementNonce` in `Account.cs` with `_balanceLock`
+3. Resolve `TransactionBlock` setter/`Seal` redundancy — pick one pattern and remove the other
+
+### Step 2 — `HYDRON.Cryptography` (2–3 days)
+4. `SystemConstants` — reward amounts, block sizes, fee floor, physics constant (13.6 eV), consensus threshold
+5. `HashProvider` — SHA-256 canonical hasher for transactions and blocks
+6. `MerkleTree` — binary Merkle builder; produces root that `TransactionBlock.Seal()` consumes
+7. `SignatureVerifier` — Ed25519 verify wrapper (service-side, decoupled from `KeySafe`)
+
+### Step 3 — Model-layer unit tests `HYDRON.Tests` (3–4 days)
+8. `AtomosTests` — arithmetic, denomination round-trips, overflow
+9. `AccountTests` — concurrency on balance/nonce, state hash invalidation
+10. `TransactionTests` — full status lifecycle, frozen validator guard, supermajority threshold
+11. `ValidationTests` — sign-before-confirm/reject, penalize on both outcomes, reward assignment
+12. `ValidatorTests` — stake/withdraw, penalty, reward block on Penalized, endpoint validation
+13. `KeySafeTests` — child derivation (key + chain code stored), stealth round-trip, disposal
+14. `TransactionBlockTests` — lock behaviour, seal idempotency, `IsValid` edge cases
+
+### Step 4 — `HYDRON.Database` (3–5 days)
+15. RocksDB wrapper with key namespace scheme
+16. Repository interfaces + implementations for Account, Transaction, Validator, Block
+17. JSON codec for `BigInteger`, `Atomos`, `DateTimeOffset`
+18. Batch write operations for atomic multi-key commits
+
+### Step 5 — Core service layer `HYDRON.Core` (ongoing)
+19. `AccountService` — create, load, save, balance query
+20. `TransactionBuilder` + ingest pipeline (sig verify, balance check, nonce check, fee guard)
+21. `RewardCalculator` — deterministic reward computation from block contents
+22. `SystemConstants` wired into all callers
