@@ -79,8 +79,11 @@ namespace HYDRON.Models
 
         public void IncrementNonce()
         {
-            Nonce++;
-            InvalidateStateHash();
+            lock (_balanceLock)
+            {
+                Nonce++;
+                InvalidateStateHash();
+            }
         }
 
         private const int MaxHandleLength = 1000;

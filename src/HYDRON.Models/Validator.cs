@@ -158,13 +158,14 @@ namespace HYDRON.Models
         {
             if (rewardAmount <= Atomos.Zero)
                 throw new ArgumentException("Reward amount must be greater than zero.", nameof(rewardAmount));
+            if (Status == ValidatorStatus.Penalized)
+                throw new InvalidOperationException("Penalized validators cannot receive rewards.");
 
             StakedAmount += rewardAmount;
             TotalRewardsEarned += rewardAmount;
             InvalidateStateHash();
 
-            if (Status is ValidatorStatus.Penalized or ValidatorStatus.Inactive
-                && StakedAmount >= Atomos.One)
+            if (Status == ValidatorStatus.Inactive && StakedAmount >= Atomos.One)
                 Status = ValidatorStatus.Active;
         }
 

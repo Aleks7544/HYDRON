@@ -84,8 +84,8 @@
 
         public void Penalize(Atomos penaltyAmount, string evidence)
         {
-            if (Status != ValidationStatus.Confirmed)
-                throw new InvalidOperationException("Only confirmed validations can be penalized.");
+            if (Status is not (ValidationStatus.Confirmed or ValidationStatus.Rejected))
+                throw new InvalidOperationException("Only completed validations can be penalized.");
             if (IsPenalized)
                 throw new InvalidOperationException("Validation already penalized.");
             if (penaltyAmount <= Atomos.Zero)

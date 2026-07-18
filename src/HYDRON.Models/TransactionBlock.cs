@@ -85,21 +85,6 @@ namespace HYDRON.Models
             }
         }
 
-        public void SetHash(string hash)
-        {
-            if (string.IsNullOrWhiteSpace(hash))
-                throw new ArgumentException("Hash cannot be null or empty.", nameof(hash));
-
-            lock (_writeLock)
-            {
-                if (_sealed)
-                    throw new InvalidOperationException("Block has already been sealed.");
-                if (!string.IsNullOrEmpty(Hash))
-                    throw new InvalidOperationException("Block hash has already been set and cannot be changed.");
-                Hash = hash;
-            }
-        }
-
         public void SetMerkleRoot(string merkleRoot)
         {
             lock (_writeLock)
