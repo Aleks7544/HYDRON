@@ -31,11 +31,9 @@
 - ✅ **1.1.9** `ValidatorRank` — ranking snapshot record; normalized reputation, uptime, speed, stake fields; tier classification
 - ✅ **1.1.10** `Enumerators` — all domain enums: `TransactionStatus`, `ValidationStatus`, `ValidatorStatus`, `ValidatorTier`, `Priority`, `PrivacyMode`, `RewardStatus`
 
-### Open items in completed models (low severity — address before Phase 2 service layer)
+### Open items
 
-- 🔶 `TransactionBlock` — `SetHash`, `SetMerkleRoot`, `SetStateRoot` individual setters are redundant alongside `Seal` and create an inconsistent two-phase write path. Either remove the individual setters and mandate `Seal`, or remove `Seal` and enforce the individual setters. Having both is a footgun.
-- 🔶 `Account` — `IncrementNonce` is not guarded by `_balanceLock`; concurrent calls from two threads can lose an increment. Wrap in `lock (_balanceLock)` before service layer is built.
-- 🔶 `Enumerators` — enum members use implicit integer values; reordering during refactoring will silently break any serialized data. Assign explicit values before the database layer lands.
+
 
 ### 1.2 Database Layer (`HYDRON.Database`)
 

@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/docs/">
     <File Path="docs/Hydron Valuation.xlsx" />
+    <File Path="docs/HYDRON_MASTER_DOCUMENTATION.md" />
     <File Path="docs/Project State.md" />
   </Folder>
   <Folder Name="/src/">
