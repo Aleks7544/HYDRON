@@ -2,11 +2,7 @@
 
 namespace HYDRON.Models
 {
-    public sealed class StateBlock(
-        BigInteger blockNumber,
-        string previousHash,
-        string coreValidatorAddress)
-        : Block(blockNumber, previousHash, coreValidatorAddress)
+    public sealed class StateBlock : Block
     {
         public string GlobalStateRoot { get; private set; } = string.Empty;
 
@@ -15,6 +11,38 @@ namespace HYDRON.Models
         private readonly List<string> _transactionBlockHashes = [];
         public IReadOnlyList<string> TransactionBlockHashes => _transactionBlockHashes.AsReadOnly();
         public int TransactionBlockCount => _transactionBlockHashes.Count;
+
+        private StateBlock(
+            BigInteger blockNumber, string hash, string previousHash,
+            DateTimeOffset timestamp, string producerAddress,
+            string merkleRoot, string globalStateRoot,
+            Atomos totalFeesCollected,
+            IEnumerable<string> transactionBlockHashes)
+            : base(blockNumber, previousHash, producerAddress)
+        {
+            Timestamp = timestamp;
+            Hash = hash;
+            MerkleRoot = merkleRoot;
+            GlobalStateRoot = globalStateRoot;
+            TotalFeesCollected = totalFeesCollected;
+            _transactionBlockHashes.AddRange(transactionBlockHashes);
+            RestoreSealed();
+        }
+
+        public StateBlock(BigInteger blockNumber,
+            string previousHash,
+            string coreValidatorAddress) : base(blockNumber, previousHash, coreValidatorAddress)
+        {
+        }
+
+        internal static StateBlock Restore(
+            BigInteger blockNumber, string hash, string previousHash,
+            DateTimeOffset timestamp, string producerAddress,
+            string merkleRoot, string globalStateRoot,
+            Atomos totalFeesCollected,
+            IEnumerable<string> transactionBlockHashes) =>
+            new(blockNumber, hash, previousHash, timestamp, producerAddress,
+                merkleRoot, globalStateRoot, totalFeesCollected, transactionBlockHashes);
 
         public void AddTransactionBlockHash(string blockHash)
         {
@@ -25,9 +53,11 @@ namespace HYDRON.Models
             {
                 ThrowIfSealed();
                 if (_transactionBlockHashes.Count >= Capacity)
-                    throw new InvalidOperationException($"StateBlock already contains the maximum {Capacity} TransactionBlocks.");
+                    throw new InvalidOperationException(
+                        $"StateBlock already contains the maximum {Capacity} TransactionBlocks.");
                 if (_transactionBlockHashes.Contains(blockHash, StringComparer.OrdinalIgnoreCase))
-                    throw new InvalidOperationException($"TransactionBlock hash {blockHash} is already registered in this StateBlock.");
+                    throw new InvalidOperationException(
+                        $"TransactionBlock hash {blockHash} is already registered in this StateBlock.");
 
                 _transactionBlockHashes.Add(blockHash);
             }

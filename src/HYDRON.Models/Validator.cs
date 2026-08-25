@@ -38,6 +38,37 @@ namespace HYDRON.Models
 
         private const int MaxDescriptionLength = 1000;
 
+        private Validator(
+            string address, string publicKey, string stealthPublicKey,
+            string? handle, Atomos balance, BigInteger nonce,
+            Atomos stakedAmount, ValidatorTier tier, ValidatorStatus status,
+            BigInteger correctVotes, BigInteger totalVotes,
+            BigInteger transactionsValidated, BigInteger rejectedTransactions,
+            Atomos totalTransactionValue, Atomos totalRewardsEarned, Atomos totalPenaltyAmount,
+            string? ipv4, string? ipv6, string? dns,
+            double commissionRate, string? description,
+            IEnumerable<Guid> confirmedIds, IEnumerable<Guid> rejectedIds)
+            : base(address, publicKey, stealthPublicKey, handle, balance, nonce)
+        {
+            StakedAmount = stakedAmount;
+            Tier = tier;
+            Status = status;
+            CorrectVotes = correctVotes;
+            TotalVotes = totalVotes;
+            TransactionsValidatedCount = transactionsValidated;
+            RejectedTransactionsCount = rejectedTransactions;
+            TotalTransactionValue = totalTransactionValue;
+            TotalRewardsEarned = totalRewardsEarned;
+            TotalPenaltyAmount = totalPenaltyAmount;
+            NetworkEndpointIPv4 = ipv4;
+            NetworkEndpointIPv6 = ipv6;
+            NetworkEndpointDns = dns;
+            CommissionRate = commissionRate;
+            Description = description;
+            foreach (Guid id in confirmedIds) _confirmedValidationIds.Add(id);
+            foreach (Guid id in rejectedIds) _rejectedValidationIds.Add(id);
+        }
+
         public Validator(
             string address,
             string publicKey,
@@ -62,7 +93,8 @@ namespace HYDRON.Models
                 throw new ArgumentException("Commission rate must be between 0 and 100.", nameof(commissionRate));
 
             if (description is not null && Encoding.UTF8.GetByteCount(description) > MaxDescriptionLength)
-                throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} UTF-8 bytes.", nameof(description));
+                throw new ArgumentException($"Description cannot exceed {MaxDescriptionLength} UTF-8 bytes.",
+                    nameof(description));
 
             ValidateIPv4(networkEndpointIPv4, nameof(networkEndpointIPv4));
             ValidateIPv6(networkEndpointIPv6, nameof(networkEndpointIPv6));
@@ -79,6 +111,22 @@ namespace HYDRON.Models
             Tier = ValidatorTier.Edge;
             Status = ValidatorStatus.Active;
         }
+
+        internal static Validator Restore(
+            string address, string publicKey, string stealthPublicKey,
+            string? handle, Atomos balance, BigInteger nonce,
+            Atomos stakedAmount, ValidatorTier tier, ValidatorStatus status,
+            BigInteger correctVotes, BigInteger totalVotes,
+            BigInteger transactionsValidated, BigInteger rejectedTransactions,
+            Atomos totalTransactionValue, Atomos totalRewardsEarned, Atomos totalPenaltyAmount,
+            string? ipv4, string? ipv6, string? dns,
+            double commissionRate, string? description,
+            IEnumerable<Guid> confirmedIds, IEnumerable<Guid> rejectedIds) =>
+            new(address, publicKey, stealthPublicKey, handle, balance, nonce,
+                stakedAmount, tier, status, correctVotes, totalVotes,
+                transactionsValidated, rejectedTransactions,
+                totalTransactionValue, totalRewardsEarned, totalPenaltyAmount,
+                ipv4, ipv6, dns, commissionRate, description, confirmedIds, rejectedIds);
 
         public void AddStake(Atomos amount)
         {
@@ -138,7 +186,8 @@ namespace HYDRON.Models
         public void ApplyPenalty(Atomos requestedPenaltyAmount, string evidence)
         {
             if (requestedPenaltyAmount <= Atomos.Zero)
-                throw new ArgumentException("Penalty amount must be greater than zero.", nameof(requestedPenaltyAmount));
+                throw new ArgumentException("Penalty amount must be greater than zero.",
+                    nameof(requestedPenaltyAmount));
             if (string.IsNullOrWhiteSpace(evidence))
                 throw new ArgumentException("Penalty evidence cannot be null or empty.", nameof(evidence));
 
@@ -231,8 +280,8 @@ namespace HYDRON.Models
         protected override void AppendExtraHashFields(StringBuilder sb)
         {
             sb.Append('|').Append(StakedAmount)
-              .Append('|').Append(Tier)
-              .Append('|').Append(Status);
+                .Append('|').Append(Tier)
+                .Append('|').Append(Status);
         }
 
         private static void ValidateIPv4(string? address, string paramName)

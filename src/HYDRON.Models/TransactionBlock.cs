@@ -10,10 +10,39 @@ namespace HYDRON.Models
 
         private readonly List<Transaction> _transactions = [];
         public IReadOnlyList<Transaction> Transactions => _transactions.AsReadOnly();
+        private readonly List<string> _restoredTransactionHashes = [];
+        IReadOnlyList<string> RestoredTransactionHashes => _restoredTransactionHashes.AsReadOnly();
+
         public int TransactionCount => _transactions.Count;
 
         public Atomos GetTotalFees() =>
             _transactions.Aggregate(Atomos.Zero, (acc, tx) => acc + tx.Fee);
+
+        private TransactionBlock(
+            BigInteger blockNumber, string hash, string previousHash,
+            DateTimeOffset timestamp, string producerAddress,
+            string merkleRoot, string stateRoot,
+            Atomos electricityPriceAtomosPerEv,
+            IEnumerable<string> transactionHashes)
+            : base(blockNumber, previousHash, producerAddress)
+        {
+            Timestamp = timestamp;
+            Hash = hash;
+            MerkleRoot = merkleRoot;
+            StateRoot = stateRoot;
+            ElectricityPriceAtomosPerEv = electricityPriceAtomosPerEv;
+            _restoredTransactionHashes = transactionHashes.ToList();
+            RestoreSealed();
+        }
+
+        internal static TransactionBlock Restore(
+            BigInteger blockNumber, string hash, string previousHash,
+            DateTimeOffset timestamp, string producerAddress,
+            string merkleRoot, string stateRoot,
+            Atomos electricityPriceAtomosPerEv,
+            IEnumerable<string> transactionHashes) =>
+            new(blockNumber, hash, previousHash, timestamp, producerAddress,
+                merkleRoot, stateRoot, electricityPriceAtomosPerEv, transactionHashes);
 
         public TransactionBlock(
             BigInteger blockNumber,
@@ -23,7 +52,8 @@ namespace HYDRON.Models
             : base(blockNumber, previousHash, coreValidatorAddress)
         {
             if (electricityPriceAtomosPerEv <= Atomos.Zero)
-                throw new ArgumentException("Electricity price must be greater than zero.", nameof(electricityPriceAtomosPerEv));
+                throw new ArgumentException("Electricity price must be greater than zero.",
+                    nameof(electricityPriceAtomosPerEv));
 
             ElectricityPriceAtomosPerEv = electricityPriceAtomosPerEv;
             StateRoot = string.Empty;

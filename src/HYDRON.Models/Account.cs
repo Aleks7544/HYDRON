@@ -14,9 +14,24 @@ namespace HYDRON.Models
         private Atomos _balance = Atomos.Zero;
         private readonly Lock _balanceLock = new();
 
+        private protected Account(
+            string address, string publicKey, string stealthPublicKey,
+            string? handle, Atomos balance, BigInteger nonce)
+        {
+            Address = address;
+            PublicKey = publicKey;
+            StealthPublicKey = stealthPublicKey;
+            Handle = handle;
+            _balance = balance;
+            Nonce = nonce;
+        }
+
         public Atomos Balance
         {
-            get { lock (_balanceLock) return _balance; }
+            get
+            {
+                lock (_balanceLock) return _balance;
+            }
         }
 
         public BigInteger Nonce { get; private set; }
@@ -55,6 +70,11 @@ namespace HYDRON.Models
             Nonce = BigInteger.Zero;
         }
 
+        internal static Account Restore(
+            string address, string publicKey, string stealthPublicKey,
+            string? handle, Atomos balance, BigInteger nonce) =>
+            new(address, publicKey, stealthPublicKey, handle, balance, nonce);
+
         public bool TryDeductBalance(Atomos amount)
         {
             lock (_balanceLock)
@@ -63,7 +83,7 @@ namespace HYDRON.Models
                 _balance -= amount;
                 InvalidateStateHash();
             }
-            
+
             return true;
         }
 
@@ -74,7 +94,6 @@ namespace HYDRON.Models
                 _balance += amount;
                 InvalidateStateHash();
             }
-            
         }
 
         public void IncrementNonce()
@@ -97,8 +116,10 @@ namespace HYDRON.Models
 
                 int byteLength = Encoding.UTF8.GetByteCount(newHandle);
                 if (byteLength > MaxHandleLength)
-                    throw new ArgumentException($"Handle cannot exceed {MaxHandleLength} UTF-8 bytes.", nameof(newHandle));
+                    throw new ArgumentException($"Handle cannot exceed {MaxHandleLength} UTF-8 bytes.",
+                        nameof(newHandle));
             }
+
             Handle = newHandle;
             InvalidateStateHash();
         }
@@ -116,11 +137,11 @@ namespace HYDRON.Models
         {
             StringBuilder sb = new();
             sb.Append(Address).Append('|')
-              .Append(PublicKey).Append('|')
-              .Append(StealthPublicKey).Append('|')
-              .Append(Balance).Append('|')
-              .Append(Nonce).Append('|')
-              .Append(Handle ?? string.Empty);
+                .Append(PublicKey).Append('|')
+                .Append(StealthPublicKey).Append('|')
+                .Append(Balance).Append('|')
+                .Append(Nonce).Append('|')
+                .Append(Handle ?? string.Empty);
 
             AppendExtraHashFields(sb);
 
@@ -129,7 +150,9 @@ namespace HYDRON.Models
             return Convert.ToHexStringLower(hash);
         }
 
-        protected virtual void AppendExtraHashFields(StringBuilder sb) { }
+        protected virtual void AppendExtraHashFields(StringBuilder sb)
+        {
+        }
 
         protected void InvalidateStateHash()
         {

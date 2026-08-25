@@ -1,5 +1,4 @@
-﻿// src/HYDRON.Models/Block.cs
-using System.Numerics;
+﻿using System.Numerics;
 
 namespace HYDRON.Models
 {
@@ -16,7 +15,8 @@ namespace HYDRON.Models
 
         public string MerkleRoot { get; protected set; }
 
-        public bool IsSealed { get; private set; }
+        public bool IsSealed { get; private protected set; }
+
         protected readonly Lock WriteLock = new();
 
         protected Block(
@@ -64,5 +64,7 @@ namespace HYDRON.Models
             if (IsSealed)
                 throw new InvalidOperationException($"Cannot modify a sealed {GetType().Name}.");
         }
+
+        internal void RestoreSealed() => IsSealed = true;
     }
 }

@@ -5,8 +5,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PublishAot>true</PublishAot>
+    <PublishAot>false</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RocksDB" Version="11.8.1.4423" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HYDRON.Models\HYDRON.Models.csproj" />
+  </ItemGroup>
 
 </Project>

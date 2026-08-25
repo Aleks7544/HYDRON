@@ -58,22 +58,26 @@ namespace HYDRON.Models
 
         private static readonly Dictionary<TransactionStatus, HashSet<TransactionStatus>> ValidTransitions = new()
         {
-            [TransactionStatus.InitiatedBySender] = [
+            [TransactionStatus.InitiatedBySender] =
+            [
                 TransactionStatus.AwaitingReceiverAcceptance,
                 TransactionStatus.AbortedBySender,
                 TransactionStatus.PendingValidation
             ],
-            [TransactionStatus.AwaitingReceiverAcceptance] = [
+            [TransactionStatus.AwaitingReceiverAcceptance] =
+            [
                 TransactionStatus.PendingValidation,
                 TransactionStatus.AbortedBySender,
                 TransactionStatus.AbortedByReceiver,
                 TransactionStatus.TimedOut
             ],
-            [TransactionStatus.PendingValidation] = [
+            [TransactionStatus.PendingValidation] =
+            [
                 TransactionStatus.ConsensusReached,
                 TransactionStatus.Rejected
             ],
-            [TransactionStatus.ConsensusReached] = [
+            [TransactionStatus.ConsensusReached] =
+            [
                 TransactionStatus.Settled
             ],
             [TransactionStatus.AbortedBySender] = [],
@@ -82,6 +86,36 @@ namespace HYDRON.Models
             [TransactionStatus.Rejected] = [],
             [TransactionStatus.Settled] = [],
         };
+
+        private Transaction(
+            string sender, string receiver, Atomos amount, Atomos fee,
+            BigInteger nonce, string senderSignature, string? receiverSignature,
+            string hash, TransactionStatus status, bool requiresReceiverConfirmation,
+            DateTimeOffset initiatedAt, bool isFinalized, DateTimeOffset? finalizedAt,
+            Priority? priority, BigInteger? transactionBlockNumber,
+            PrivacyMode privacyMode, string? ephemeralPublicKey,
+            IEnumerable<string> assignedValidators)
+        {
+            Sender = sender;
+            Receiver = receiver;
+            Amount = amount;
+            Fee = fee;
+            Nonce = nonce;
+            SenderSignature = senderSignature;
+            ReceiverSignature = receiverSignature;
+            Hash = hash;
+            Status = status;
+            RequiresReceiverConfirmation = requiresReceiverConfirmation;
+            InitiatedAt = initiatedAt;
+            IsFinalized = isFinalized;
+            FinalizedAt = finalizedAt;
+            Priority = priority;
+            TransactionBlockNumber = transactionBlockNumber;
+            PrivacyMode = privacyMode;
+            EphemeralPublicKey = ephemeralPublicKey;
+            _assignedValidators.AddRange(assignedValidators);
+            if (isFinalized) _frozenValidatorCount = _assignedValidators.Count;
+        }
 
         public Transaction(
             string sender,
@@ -108,7 +142,8 @@ namespace HYDRON.Models
             if (nonce < BigInteger.Zero)
                 throw new ArgumentException("Nonce cannot be negative.", nameof(nonce));
             if (privacyMode != PrivacyMode.Public && string.IsNullOrWhiteSpace(ephemeralPublicKey))
-                throw new ArgumentException("Ephemeral public key is required for private transactions.", nameof(ephemeralPublicKey));
+                throw new ArgumentException("Ephemeral public key is required for private transactions.",
+                    nameof(ephemeralPublicKey));
 
             Sender = sender;
             Receiver = receiver;
@@ -122,6 +157,18 @@ namespace HYDRON.Models
             EphemeralPublicKey = ephemeralPublicKey;
             InitiatedAt = DateTimeOffset.UtcNow;
         }
+
+        internal static Transaction Restore(
+            string sender, string receiver, Atomos amount, Atomos fee,
+            BigInteger nonce, string senderSignature, string? receiverSignature,
+            string hash, TransactionStatus status, bool requiresReceiverConfirmation,
+            DateTimeOffset initiatedAt, bool isFinalized, DateTimeOffset? finalizedAt,
+            Priority? priority, BigInteger? transactionBlockNumber,
+            PrivacyMode privacyMode, string? ephemeralPublicKey,
+            IEnumerable<string> assignedValidators) =>
+            new(sender, receiver, amount, fee, nonce, senderSignature, receiverSignature,
+                hash, status, requiresReceiverConfirmation, initiatedAt, isFinalized, finalizedAt,
+                priority, transactionBlockNumber, privacyMode, ephemeralPublicKey, assignedValidators);
 
         public Atomos GetTotalCost() => Amount + Fee;
 
@@ -203,7 +250,8 @@ namespace HYDRON.Models
             if (string.IsNullOrWhiteSpace(validatorAddress))
                 throw new ArgumentException("Validator address cannot be null or empty.", nameof(validatorAddress));
             if (_assignedValidators.Contains(validatorAddress))
-                throw new InvalidOperationException($"Validator {validatorAddress} is already assigned to this transaction.");
+                throw new InvalidOperationException(
+                    $"Validator {validatorAddress} is already assigned to this transaction.");
 
             _assignedValidators.Add(validatorAddress);
         }
@@ -218,7 +266,8 @@ namespace HYDRON.Models
                 throw new ArgumentException("Validator address cannot be null or empty.", nameof(validatorAddress));
 
             if (!_assignedValidators.Remove(validatorAddress))
-                throw new InvalidOperationException($"Validator {validatorAddress} is not assigned to this transaction.");
+                throw new InvalidOperationException(
+                    $"Validator {validatorAddress} is not assigned to this transaction.");
         }
 
         public void AddValidation(Validation validation)
@@ -232,7 +281,8 @@ namespace HYDRON.Models
             ArgumentNullException.ThrowIfNull(validation);
 
             if (!_validatingAddresses.Add(validation.ValidatorAddress))
-                throw new InvalidOperationException($"Validator {validation.ValidatorAddress} has already submitted a validation for this transaction.");
+                throw new InvalidOperationException(
+                    $"Validator {validation.ValidatorAddress} has already submitted a validation for this transaction.");
 
             if (_assignedValidators.Contains(validation.ValidatorAddress))
             {
