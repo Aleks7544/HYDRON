@@ -1,5 +1,6 @@
 using HYDRON.Models;
 using HYDRON.Validator;
+using Xunit;
 
 namespace HYDRON.Tests;
 
@@ -21,8 +22,6 @@ public class ValidatorSelectorTests
             FinalRank = finalRank,
             Tier = tier
         };
-
-    // --- Guards ---
 
     [Fact]
     public void Select_NullRanked_Throws()
@@ -47,32 +46,30 @@ public class ValidatorSelectorTests
         => Assert.Throws<ArgumentException>(() =>
             ValidatorSelector.Select([MakeRank("v1", ValidatorTier.Core, 80.0)], 2));
 
-    // --- Core-first ordering ---
-
     [Fact]
     public void Select_CoreBeforeEdge_RegardlessOfFinalRank()
     {
-        var ranked = new List<ValidatorRank>
+        List<ValidatorRank> ranked = new List<ValidatorRank>
         {
             MakeRank("edge-high", ValidatorTier.Edge, 99.0),
             MakeRank("core-low",  ValidatorTier.Core, 10.0),
         };
 
-        var result = ValidatorSelector.Select(ranked, 1);
+        IReadOnlyList<ValidatorRank> result = ValidatorSelector.Select(ranked, 1);
         Assert.Equal("core-low", result[0].ValidatorAddress);
     }
 
     [Fact]
     public void Select_WithinCoreTier_OrderedByFinalRankDescending()
     {
-        var ranked = new List<ValidatorRank>
+        List<ValidatorRank> ranked = new List<ValidatorRank>
         {
             MakeRank("c1", ValidatorTier.Core, 60.0),
             MakeRank("c2", ValidatorTier.Core, 90.0),
             MakeRank("c3", ValidatorTier.Core, 75.0),
         };
 
-        var result = ValidatorSelector.Select(ranked, 3);
+        IReadOnlyList<ValidatorRank> result = ValidatorSelector.Select(ranked, 3);
         Assert.Equal("c2", result[0].ValidatorAddress);
         Assert.Equal("c3", result[1].ValidatorAddress);
         Assert.Equal("c1", result[2].ValidatorAddress);
@@ -81,13 +78,13 @@ public class ValidatorSelectorTests
     [Fact]
     public void Select_WithinEdgeTier_OrderedByFinalRankDescending()
     {
-        var ranked = new List<ValidatorRank>
+        List<ValidatorRank> ranked = new List<ValidatorRank>
         {
             MakeRank("e1", ValidatorTier.Edge, 40.0),
             MakeRank("e2", ValidatorTier.Edge, 70.0),
         };
 
-        var result = ValidatorSelector.Select(ranked, 2);
+        IReadOnlyList<ValidatorRank> result = ValidatorSelector.Select(ranked, 2);
         Assert.Equal("e2", result[0].ValidatorAddress);
         Assert.Equal("e1", result[1].ValidatorAddress);
     }
@@ -95,7 +92,7 @@ public class ValidatorSelectorTests
     [Fact]
     public void Select_MixedTiers_CoreFirstThenEdgeByRank()
     {
-        var ranked = new List<ValidatorRank>
+        List<ValidatorRank> ranked = new List<ValidatorRank>
         {
             MakeRank("e1", ValidatorTier.Edge, 95.0),
             MakeRank("c1", ValidatorTier.Core, 50.0),
@@ -103,40 +100,38 @@ public class ValidatorSelectorTests
             MakeRank("e2", ValidatorTier.Edge, 30.0),
         };
 
-        var result = ValidatorSelector.Select(ranked, 4);
+        IReadOnlyList<ValidatorRank> result = ValidatorSelector.Select(ranked, 4);
         Assert.Equal("c2", result[0].ValidatorAddress);
         Assert.Equal("c1", result[1].ValidatorAddress);
         Assert.Equal("e1", result[2].ValidatorAddress);
         Assert.Equal("e2", result[3].ValidatorAddress);
     }
 
-    // --- Exact count ---
-
     [Fact]
     public void Select_ExactCount_ReturnedCorrectly()
     {
-        var ranked = new List<ValidatorRank>
-        {
+        List<ValidatorRank> ranked =
+        [
             MakeRank("v1", ValidatorTier.Core, 90.0),
             MakeRank("v2", ValidatorTier.Core, 80.0),
-            MakeRank("v3", ValidatorTier.Edge, 70.0),
-        };
+            MakeRank("v3", ValidatorTier.Edge, 70.0)
+        ];
 
-        var result = ValidatorSelector.Select(ranked, 2);
+        IReadOnlyList<ValidatorRank> result = ValidatorSelector.Select(ranked, 2);
         Assert.Equal(2, result.Count);
     }
 
     [Fact]
     public void Select_Index0_IsHighestRankedCore()
     {
-        var ranked = new List<ValidatorRank>
-        {
-            MakeRank("c-low",  ValidatorTier.Core, 40.0),
+        List<ValidatorRank> ranked =
+        [
+            MakeRank("c-low", ValidatorTier.Core, 40.0),
             MakeRank("c-high", ValidatorTier.Core, 90.0),
-            MakeRank("e1",     ValidatorTier.Edge, 99.0),
-        };
+            MakeRank("e1", ValidatorTier.Edge, 99.0)
+        ];
 
-        var result = ValidatorSelector.Select(ranked, 3);
+        IReadOnlyList<ValidatorRank> result = ValidatorSelector.Select(ranked, 3);
         Assert.Equal("c-high", result[0].ValidatorAddress);
     }
 }

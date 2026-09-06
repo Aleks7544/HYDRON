@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\src\HYDRON.Cryptography\HYDRON.Cryptography.csproj" />
     <ProjectReference Include="..\..\src\HYDRON.Database\HYDRON.Database.csproj" />
     <ProjectReference Include="..\..\src\HYDRON.Models\HYDRON.Models.csproj" />
+    <ProjectReference Include="..\..\src\HYDRON.Validator\HYDRON.Validator.csproj" />
   </ItemGroup>
 
 </Project>

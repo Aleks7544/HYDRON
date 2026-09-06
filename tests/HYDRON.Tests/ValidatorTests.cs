@@ -6,7 +6,7 @@ namespace HYDRON.Tests;
 
 public class ValidatorTests
 {
-    private static Validator MakeValidator(
+    private static Models.Validator MakeValidator(
         string address = "val_addr",
         Atomos? stake = null,
         string? ipv4 = "192.168.1.1") =>
@@ -15,7 +15,7 @@ public class ValidatorTests
     [Fact]
     public void Constructor_ValidArgs_InitialisesCorrectly()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         Assert.Equal(new Atomos(1000), v.StakedAmount);
         Assert.Equal(ValidatorStatus.Active, v.Status);
         Assert.Equal(ValidatorTier.Edge, v.Tier);
@@ -25,37 +25,37 @@ public class ValidatorTests
     [Fact]
     public void Constructor_ZeroStake_Throws()
         => Assert.Throws<ArgumentException>(() =>
-            new Validator("addr", "pub", "stealth", Atomos.Zero, networkEndpointIPv4: "1.2.3.4"));
+            new Models.Validator("addr", "pub", "stealth", Atomos.Zero, networkEndpointIPv4: "1.2.3.4"));
 
     [Fact]
     public void Constructor_NoEndpoint_Throws()
         => Assert.Throws<ArgumentException>(() =>
-            new Validator("addr", "pub", "stealth", new Atomos(1)));
+            new Models.Validator("addr", "pub", "stealth", new Atomos(1)));
 
     [Fact]
     public void Constructor_InvalidIPv4_Throws()
         => Assert.Throws<ArgumentException>(() =>
-            new Validator("addr", "pub", "stealth", new Atomos(1), networkEndpointIPv4: "not_an_ip"));
+            new Models.Validator("addr", "pub", "stealth", new Atomos(1), networkEndpointIPv4: "not_an_ip"));
 
     [Fact]
     public void Constructor_InvalidIPv6_Throws()
         => Assert.Throws<ArgumentException>(() =>
-            new Validator("addr", "pub", "stealth", new Atomos(1), networkEndpointIPv6: "not_an_ipv6"));
+            new Models.Validator("addr", "pub", "stealth", new Atomos(1), networkEndpointIPv6: "not_an_ipv6"));
 
     [Fact]
     public void Constructor_InvalidDns_Throws()
         => Assert.Throws<ArgumentException>(() =>
-            new Validator("addr", "pub", "stealth", new Atomos(1), networkEndpointDns: "-invalid-.com"));
+            new Models.Validator("addr", "pub", "stealth", new Atomos(1), networkEndpointDns: "-invalid-.com"));
 
     [Fact]
     public void Constructor_InvalidCommissionRate_Throws()
         => Assert.Throws<ArgumentException>(() =>
-            new Validator("addr", "pub", "stealth", new Atomos(1), networkEndpointIPv4: "1.2.3.4", commissionRate: 101.0));
+            new Models.Validator("addr", "pub", "stealth", new Atomos(1), networkEndpointIPv4: "1.2.3.4", commissionRate: 101.0));
 
     [Fact]
     public void AddStake_IncreasesStakedAmount()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         v.AddStake(new Atomos(500));
         Assert.Equal(new Atomos(1500), v.StakedAmount);
     }
@@ -67,7 +67,7 @@ public class ValidatorTests
     [Fact]
     public void WithdrawStake_ValidAmount_DecreasesStake()
     {
-        Validator v = MakeValidator(stake: new Atomos(1000));
+        Models.Validator v = MakeValidator(stake: new Atomos(1000));
         v.WithdrawStake(new Atomos(400));
         Assert.Equal(new Atomos(600), v.StakedAmount);
     }
@@ -80,7 +80,7 @@ public class ValidatorTests
     [Fact]
     public void WithdrawStake_DropsToZero_SetsInactive()
     {
-        Validator v = MakeValidator(stake: new Atomos(1));
+        Models.Validator v = MakeValidator(stake: new Atomos(1));
         v.WithdrawStake(new Atomos(1));
         Assert.Equal(ValidatorStatus.Inactive, v.Status);
     }
@@ -88,7 +88,7 @@ public class ValidatorTests
     [Fact]
     public void WithdrawStake_WhenPenalized_Throws()
     {
-        Validator v = MakeValidator(stake: new Atomos(1));
+        Models.Validator v = MakeValidator(stake: new Atomos(1));
         v.ApplyPenalty(new Atomos(1), "evidence");
         Assert.Throws<InvalidOperationException>(() => v.WithdrawStake(Atomos.One));
     }
@@ -96,7 +96,7 @@ public class ValidatorTests
     [Fact]
     public void ApplyPenalty_DeductsFromStake()
     {
-        Validator v = MakeValidator(stake: new Atomos(1000));
+        Models.Validator v = MakeValidator(stake: new Atomos(1000));
         v.ApplyPenalty(new Atomos(300), "approved invalid tx");
         Assert.Equal(new Atomos(700), v.StakedAmount);
         Assert.Equal(new Atomos(300), v.TotalPenaltyAmount);
@@ -105,7 +105,7 @@ public class ValidatorTests
     [Fact]
     public void ApplyPenalty_ExceedsStake_CapsAtStake()
     {
-        Validator v = MakeValidator(stake: new Atomos(100));
+        Models.Validator v = MakeValidator(stake: new Atomos(100));
         v.ApplyPenalty(new Atomos(500), "evidence");
         Assert.Equal(Atomos.Zero, v.StakedAmount);
         Assert.Equal(new Atomos(100), v.TotalPenaltyAmount);
@@ -114,7 +114,7 @@ public class ValidatorTests
     [Fact]
     public void ApplyPenalty_DropsStakeBelowOne_SetsPenalized()
     {
-        Validator v = MakeValidator(stake: new Atomos(1));
+        Models.Validator v = MakeValidator(stake: new Atomos(1));
         v.ApplyPenalty(new Atomos(1), "evidence");
         Assert.Equal(ValidatorStatus.Penalized, v.Status);
     }
@@ -130,7 +130,7 @@ public class ValidatorTests
     [Fact]
     public void ReceiveReward_IncreasesStakeAndRewards()
     {
-        Validator v = MakeValidator(stake: new Atomos(1000));
+        Models.Validator v = MakeValidator(stake: new Atomos(1000));
         v.ReceiveReward(new Atomos(100));
         Assert.Equal(new Atomos(1100), v.StakedAmount);
         Assert.Equal(new Atomos(100), v.TotalRewardsEarned);
@@ -139,7 +139,7 @@ public class ValidatorTests
     [Fact]
     public void ReceiveReward_WhenPenalized_Throws()
     {
-        Validator v = MakeValidator(stake: new Atomos(1));
+        Models.Validator v = MakeValidator(stake: new Atomos(1));
         v.ApplyPenalty(new Atomos(1), "evidence");
         Assert.Throws<InvalidOperationException>(() => v.ReceiveReward(new Atomos(100)));
     }
@@ -147,7 +147,7 @@ public class ValidatorTests
     [Fact]
     public void ReceiveReward_WhenInactive_RestoresToActive()
     {
-        Validator v = MakeValidator(stake: new Atomos(1));
+        Models.Validator v = MakeValidator(stake: new Atomos(1));
         v.WithdrawStake(new Atomos(1));
         Assert.Equal(ValidatorStatus.Inactive, v.Status);
         v.AddStake(new Atomos(1));
@@ -161,7 +161,7 @@ public class ValidatorTests
     [Fact]
     public void GetVotingWeight_PenalizedValidator_ReturnsZero()
     {
-        Validator v = MakeValidator(stake: new Atomos(1));
+        Models.Validator v = MakeValidator(stake: new Atomos(1));
         v.ApplyPenalty(new Atomos(1), "evidence");
         Assert.Equal(Atomos.Zero, v.GetVotingWeight());
     }
@@ -169,7 +169,7 @@ public class ValidatorTests
     [Fact]
     public void GetVotingWeight_SuspendedValidator_ReturnsZero()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         v.Suspend();
         Assert.Equal(Atomos.Zero, v.GetVotingWeight());
     }
@@ -177,7 +177,7 @@ public class ValidatorTests
     [Fact]
     public void Warn_FromActive_SetsWarned()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         v.Warn();
         Assert.Equal(ValidatorStatus.Warned, v.Status);
     }
@@ -185,7 +185,7 @@ public class ValidatorTests
     [Fact]
     public void Suspend_FromWarned_SetsSuspended()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         v.Warn();
         v.Suspend();
         Assert.Equal(ValidatorStatus.Suspended, v.Status);
@@ -194,7 +194,7 @@ public class ValidatorTests
     [Fact]
     public void MarkUnreachable_FromActive_SetsUnreachable()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         v.MarkUnreachable();
         Assert.Equal(ValidatorStatus.Unreachable, v.Status);
     }
@@ -206,7 +206,7 @@ public class ValidatorTests
     [Fact]
     public void IsReachable_Penalized_ReturnsFalse()
     {
-        Validator v = MakeValidator(stake: new Atomos(1));
+        Models.Validator v = MakeValidator(stake: new Atomos(1));
         v.ApplyPenalty(new Atomos(1), "evidence");
         Assert.False(v.IsReachable());
     }
@@ -218,7 +218,7 @@ public class ValidatorTests
     [Fact]
     public void ReputationScore_AllCorrect_Is100()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         v.RecordVote(true);
         v.RecordVote(true);
         Assert.Equal(100.0, v.ReputationScore);
@@ -227,7 +227,7 @@ public class ValidatorTests
     [Fact]
     public void ReputationScore_HalfCorrect_Is50()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         v.RecordVote(true);
         v.RecordVote(false);
         Assert.Equal(50.0, v.ReputationScore);
@@ -236,7 +236,7 @@ public class ValidatorTests
     [Fact]
     public void RecordValidation_Works()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         Guid id = Guid.NewGuid();
         v.RecordValidation(id, new Atomos(500));
         Assert.Contains(id, v.ConfirmedValidationIds);
@@ -246,7 +246,7 @@ public class ValidatorTests
     [Fact]
     public void RecordValidation_Duplicate_Throws()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         Guid id = Guid.NewGuid();
         v.RecordValidation(id, new Atomos(500));
         Assert.Throws<InvalidOperationException>(() => v.RecordValidation(id, new Atomos(500)));
@@ -255,7 +255,7 @@ public class ValidatorTests
     [Fact]
     public void RecordRejection_Works()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         Guid id = Guid.NewGuid();
         v.RecordRejection(id);
         Assert.Contains(id, v.RejectedValidationIds);
@@ -265,7 +265,7 @@ public class ValidatorTests
     [Fact]
     public void UpdateTier_ChangesToCore()
     {
-        Validator v = MakeValidator();
+        Models.Validator v = MakeValidator();
         v.UpdateTier(ValidatorTier.Core);
         Assert.Equal(ValidatorTier.Core, v.Tier);
     }
