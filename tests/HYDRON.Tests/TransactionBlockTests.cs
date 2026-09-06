@@ -99,7 +99,7 @@ public class TransactionBlockTests
     [Fact]
     public void AddTransaction_AfterSealed_Throws()
     {
-        var b = MakeBlock();
+        TransactionBlock b = MakeBlock();
         b.AddTransaction(MakeFinalizedTx(hashFill: 'a'));
         b.Seal(new string('b', 64), new string('c', 64), "state_root");
         Assert.Throws<InvalidOperationException>(() =>

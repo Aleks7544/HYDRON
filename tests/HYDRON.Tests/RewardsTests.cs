@@ -1,5 +1,6 @@
 using System.Numerics;
 using HYDRON.Models;
+using Xunit;
 
 namespace HYDRON.Tests;
 
@@ -28,12 +29,10 @@ public class RewardsTests
             totalFeeReward: new Atomos(100),
             validatorRewards: rewards ?? [MakeValidatorReward()]);
 
-    // --- ValidatorReward construction ---
-
     [Fact]
     public void ValidatorReward_ValidArgs_ComputesTotalCorrectly()
     {
-        var vr = MakeValidatorReward(blockAmt: 100, validationAmt: 50, feeAmt: 25);
+        ValidatorReward vr = MakeValidatorReward(blockAmt: 100, validationAmt: 50, feeAmt: 25);
         Assert.Equal(new Atomos(175), vr.TotalReward);
     }
 
@@ -52,7 +51,7 @@ public class RewardsTests
     [Fact]
     public void ValidatorReward_EdgeTier_StoredCorrectly()
     {
-        var vr = new ValidatorReward("addr", ValidatorTier.Edge, 5,
+        ValidatorReward vr = new ValidatorReward("addr", ValidatorTier.Edge, 5,
             new Atomos(10), new Atomos(5), new Atomos(2));
         Assert.Equal(ValidatorTier.Edge, vr.Tier);
     }
@@ -60,18 +59,15 @@ public class RewardsTests
     [Fact]
     public void ValidatorReward_ZeroAmounts_TotalIsZero()
     {
-        var vr = new ValidatorReward("addr", ValidatorTier.Core, 0,
+        ValidatorReward vr = new ValidatorReward("addr", ValidatorTier.Core, 0,
             Atomos.Zero, Atomos.Zero, Atomos.Zero);
         Assert.Equal(Atomos.Zero, vr.TotalReward);
     }
 
-    // --- BlockReward construction ---
-
     [Fact]
     public void BlockReward_ValidArgs_ComputesTotalMintedCorrectly()
     {
-        // TotalMinted = core + edge + validation (fees excluded)
-        var br = MakeBlockReward();
+        BlockReward br = MakeBlockReward();
         Assert.Equal(new Atomos(1700), br.TotalMinted);
     }
 
@@ -113,7 +109,7 @@ public class RewardsTests
     [Fact]
     public void BlockReward_EmptyValidatorRewards_IsAllowed()
     {
-        var br = new BlockReward(BigInteger.One, 10, 20, 100.0,
+        BlockReward br = new BlockReward(BigInteger.One, 10, 20, 100.0,
             new Atomos(1000), new Atomos(500), new Atomos(200), new Atomos(100), []);
         Assert.Empty(br.ValidatorRewards);
     }
@@ -125,26 +121,24 @@ public class RewardsTests
     [Fact]
     public void BlockReward_HasUniqueId()
     {
-        var br1 = MakeBlockReward();
-        var br2 = MakeBlockReward();
+        BlockReward br1 = MakeBlockReward();
+        BlockReward br2 = MakeBlockReward();
         Assert.NotEqual(br1.Id, br2.Id);
     }
 
     [Fact]
     public void BlockReward_ValidatorRewards_AreStored()
     {
-        var vr1 = MakeValidatorReward("v1");
-        var vr2 = MakeValidatorReward("v2");
-        var br = MakeBlockReward([vr1, vr2]);
+        ValidatorReward vr1 = MakeValidatorReward("v1");
+        ValidatorReward vr2 = MakeValidatorReward("v2");
+        BlockReward br = MakeBlockReward([vr1, vr2]);
         Assert.Equal(2, br.ValidatorRewards.Count);
     }
-
-    // --- Settle ---
 
     [Fact]
     public void Settle_SetsStatusToSettled()
     {
-        var br = MakeBlockReward();
+        BlockReward br = MakeBlockReward();
         br.Settle();
         Assert.Equal(RewardStatus.Settled, br.Status);
         Assert.NotNull(br.SettledAt);
@@ -153,15 +147,15 @@ public class RewardsTests
     [Fact]
     public void Settle_Twice_Throws()
     {
-        var br = MakeBlockReward();
+        BlockReward br = MakeBlockReward();
         br.Settle();
-        Assert.Throws<InvalidOperationException>(() => br.Settle());
+        Assert.Throws<InvalidOperationException>(br.Settle);
     }
 
     [Fact]
     public void Settle_SettledAt_IsAfterIssuedAt()
     {
-        var br = MakeBlockReward();
+        BlockReward br = MakeBlockReward();
         br.Settle();
         Assert.True(br.SettledAt >= br.IssuedAt);
     }
