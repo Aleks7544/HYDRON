@@ -1,5 +1,6 @@
 using System.Numerics;
 using HYDRON.Models;
+using Xunit;
 
 namespace HYDRON.Tests;
 
@@ -11,7 +12,7 @@ public class AccountTests
     [Fact]
     public void Constructor_ValidArgs_InitialisesCorrectly()
     {
-        var a = MakeAccount("addr1");
+        Account a = MakeAccount("addr1");
         Assert.Equal("addr1", a.Address);
         Assert.Equal(Atomos.Zero, a.Balance);
         Assert.Equal(BigInteger.Zero, a.Nonce);
@@ -28,7 +29,7 @@ public class AccountTests
     [Fact]
     public void AddBalance_IncreasesBalance()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         a.AddBalance(new Atomos(500));
         Assert.Equal(new Atomos(500), a.Balance);
     }
@@ -36,7 +37,7 @@ public class AccountTests
     [Fact]
     public void TryDeductBalance_SufficientFunds_ReturnsTrueAndDeducts()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         a.AddBalance(new Atomos(1000));
         bool result = a.TryDeductBalance(new Atomos(400));
         Assert.True(result);
@@ -46,7 +47,7 @@ public class AccountTests
     [Fact]
     public void TryDeductBalance_InsufficientFunds_ReturnsFalseAndKeepsBalance()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         a.AddBalance(new Atomos(100));
         bool result = a.TryDeductBalance(new Atomos(200));
         Assert.False(result);
@@ -56,7 +57,7 @@ public class AccountTests
     [Fact]
     public void IncrementNonce_IncreasesNonceByOne()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         a.IncrementNonce();
         Assert.Equal(BigInteger.One, a.Nonce);
         a.IncrementNonce();
@@ -66,7 +67,7 @@ public class AccountTests
     [Fact]
     public void UpdateHandle_ValidHandle_SetsHandle()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         a.UpdateHandle("hydron_user");
         Assert.Equal("hydron_user", a.Handle);
     }
@@ -74,7 +75,7 @@ public class AccountTests
     [Fact]
     public void UpdateHandle_Null_ClearsHandle()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         a.UpdateHandle("hydron_user");
         a.UpdateHandle(null);
         Assert.Null(a.Handle);
@@ -94,14 +95,14 @@ public class AccountTests
     [Fact]
     public void StateHash_IsDeterministic()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         Assert.Equal(a.StateHash, a.StateHash);
     }
 
     [Fact]
     public void StateHash_ChangesAfterBalanceMutation()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         string before = a.StateHash;
         a.AddBalance(new Atomos(1));
         Assert.NotEqual(before, a.StateHash);
@@ -110,7 +111,7 @@ public class AccountTests
     [Fact]
     public void StateHash_ChangesAfterNonceIncrement()
     {
-        var a = MakeAccount();
+        Account a = MakeAccount();
         string before = a.StateHash;
         a.IncrementNonce();
         Assert.NotEqual(before, a.StateHash);
@@ -119,8 +120,8 @@ public class AccountTests
     [Fact]
     public async Task AddBalance_ConcurrentCalls_ProducesCorrectTotal()
     {
-        var a = MakeAccount();
-        var tasks = Enumerable.Range(0, 1000)
+        Account a = MakeAccount();
+        IEnumerable<Task> tasks = Enumerable.Range(0, 1000)
             .Select(_ => Task.Run(() => a.AddBalance(new Atomos(1))));
         await Task.WhenAll(tasks);
         Assert.Equal(new Atomos(1000), a.Balance);

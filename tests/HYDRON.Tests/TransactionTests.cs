@@ -1,5 +1,6 @@
 using System.Numerics;
 using HYDRON.Models;
+using Xunit;
 
 namespace HYDRON.Tests;
 
@@ -41,7 +42,7 @@ public class TransactionTests
     [Fact]
     public void UpdateStatus_ValidTransition_Works()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.UpdateStatus(TransactionStatus.PendingValidation);
         Assert.Equal(TransactionStatus.PendingValidation, tx.Status);
     }
@@ -54,7 +55,7 @@ public class TransactionTests
     [Fact]
     public void UpdateStatus_AfterFinalize_Throws()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.UpdateStatus(TransactionStatus.AbortedBySender);
         tx.FinalizeTransaction();
         Assert.Throws<InvalidOperationException>(() => tx.UpdateStatus(TransactionStatus.Rejected));
@@ -63,7 +64,7 @@ public class TransactionTests
     [Fact]
     public void FinalizeTransaction_FromTerminalStatus_Works()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.UpdateStatus(TransactionStatus.AbortedBySender);
         tx.FinalizeTransaction();
         Assert.True(tx.IsFinalized);
@@ -77,16 +78,16 @@ public class TransactionTests
     [Fact]
     public void FinalizeTransaction_AlreadyFinalized_Throws()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.UpdateStatus(TransactionStatus.AbortedBySender);
         tx.FinalizeTransaction();
-        Assert.Throws<InvalidOperationException>(() => tx.FinalizeTransaction());
+        Assert.Throws<InvalidOperationException>(tx.FinalizeTransaction);
     }
 
     [Fact]
     public void SetHash_CanBeSetOnce()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.SetHash("abc123");
         Assert.Equal("abc123", tx.Hash);
     }
@@ -94,7 +95,7 @@ public class TransactionTests
     [Fact]
     public void SetHash_CannotBeSetTwice()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.SetHash("abc123");
         Assert.Throws<InvalidOperationException>(() => tx.SetHash("xyz"));
     }
@@ -102,7 +103,7 @@ public class TransactionTests
     [Fact]
     public void SetReceiverSignature_WhenRequired_Works()
     {
-        var tx = MakeTx(requiresReceiver: true);
+        Transaction tx = MakeTx(requiresReceiver: true);
         tx.SetReceiverSignature("recv_sig");
         Assert.True(tx.IsSignedByReceiver());
     }
@@ -114,7 +115,7 @@ public class TransactionTests
     [Fact]
     public void SetReceiverSignature_Twice_Throws()
     {
-        var tx = MakeTx(requiresReceiver: true);
+        Transaction tx = MakeTx(requiresReceiver: true);
         tx.SetReceiverSignature("recv_sig");
         Assert.Throws<InvalidOperationException>(() => tx.SetReceiverSignature("another_sig"));
     }
@@ -122,7 +123,7 @@ public class TransactionTests
     [Fact]
     public void AddValidator_BeforePending_Works()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.AddValidator("val1");
         Assert.Contains("val1", tx.AssignedValidators);
     }
@@ -130,7 +131,7 @@ public class TransactionTests
     [Fact]
     public void AddValidator_DuplicateAddress_Throws()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.AddValidator("val1");
         Assert.Throws<InvalidOperationException>(() => tx.AddValidator("val1"));
     }
@@ -138,7 +139,7 @@ public class TransactionTests
     [Fact]
     public void AddValidator_AfterPendingValidation_Throws()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.AddValidator("val1");
         tx.UpdateStatus(TransactionStatus.PendingValidation);
         Assert.Throws<InvalidOperationException>(() => tx.AddValidator("val2"));
@@ -147,7 +148,7 @@ public class TransactionTests
     [Fact]
     public void RemoveValidator_BeforeFreeze_Works()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.AddValidator("val1");
         tx.RemoveValidator("val1");
         Assert.DoesNotContain("val1", tx.AssignedValidators);
@@ -156,7 +157,7 @@ public class TransactionTests
     [Fact]
     public void RemoveValidator_AfterFreeze_Throws()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.AddValidator("val1");
         tx.UpdateStatus(TransactionStatus.PendingValidation);
         Assert.Throws<InvalidOperationException>(() => tx.RemoveValidator("val1"));
@@ -169,7 +170,7 @@ public class TransactionTests
     [Fact]
     public void ChangePriority_BeforePendingValidation_Works()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.ChangePriority(Priority.High);
         Assert.Equal(Priority.High, tx.Priority);
     }
@@ -177,7 +178,7 @@ public class TransactionTests
     [Fact]
     public void ChangePriority_AfterPendingValidation_Throws()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.UpdateStatus(TransactionStatus.PendingValidation);
         Assert.Throws<InvalidOperationException>(() => tx.ChangePriority(Priority.High));
     }
@@ -185,7 +186,7 @@ public class TransactionTests
     [Fact]
     public void AssignBlockNumber_WhenSettled_Works()
     {
-        var tx = MakeTx();
+        Transaction tx = MakeTx();
         tx.UpdateStatus(TransactionStatus.PendingValidation);
         tx.UpdateStatus(TransactionStatus.ConsensusReached);
         tx.UpdateStatus(TransactionStatus.Settled);

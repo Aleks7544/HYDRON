@@ -1,5 +1,6 @@
 using System.Numerics;
 using HYDRON.Models;
+using Xunit;
 
 namespace HYDRON.Tests;
 
@@ -16,8 +17,8 @@ public class AtomosTests
     [Fact]
     public void Equality_SameValue_IsEqual()
     {
-        var a = new Atomos(42);
-        var b = new Atomos(42);
+        Atomos a = new Atomos(42);
+        Atomos b = new Atomos(42);
         Assert.Equal(a, b);
         Assert.True(a == b);
         Assert.False(a != b);
@@ -26,8 +27,8 @@ public class AtomosTests
     [Fact]
     public void Equality_DifferentValue_IsNotEqual()
     {
-        var a = new Atomos(1);
-        var b = new Atomos(2);
+        Atomos a = new Atomos(1);
+        Atomos b = new Atomos(2);
         Assert.NotEqual(a, b);
         Assert.True(a != b);
     }
@@ -35,8 +36,8 @@ public class AtomosTests
     [Fact]
     public void Comparison_Operators_WorkCorrectly()
     {
-        var small = new Atomos(1);
-        var large = new Atomos(100);
+        Atomos small = new Atomos(1);
+        Atomos large = new Atomos(100);
         Assert.True(small < large);
         Assert.True(small <= large);
         Assert.True(large > small);
@@ -80,7 +81,7 @@ public class AtomosTests
     [Fact]
     public void Increment_IncreasesValueByOne()
     {
-        var a = new Atomos(9);
+        Atomos a = new Atomos(9);
         a++;
         Assert.Equal(new Atomos(10), a);
     }
@@ -88,7 +89,7 @@ public class AtomosTests
     [Fact]
     public void Decrement_DecreasesValueByOne()
     {
-        var a = new Atomos(10);
+        Atomos a = new Atomos(10);
         a--;
         Assert.Equal(new Atomos(9), a);
     }
@@ -96,7 +97,7 @@ public class AtomosTests
     [Fact]
     public void Decrement_AtZero_Throws()
     {
-        var a = Atomos.Zero;
+        Atomos a = Atomos.Zero;
         Assert.Throws<InvalidOperationException>(() => a--);
     }
 
@@ -126,14 +127,14 @@ public class AtomosTests
     [Fact]
     public void ToDenomination_RoundTrip_IsCorrect()
     {
-        var a = Atomos.FromDenomination(3.5, Denominations.Hya);
+        Atomos a = Atomos.FromDenomination(3.5, Denominations.Hya);
         Assert.Equal(3.5, a.ToDenomination(Denominations.Hya));
     }
 
     [Fact]
     public void RemainderAfterDenomination_IsCorrect()
     {
-        var a = new Atomos(250);
+        Atomos a = new Atomos(250);
         Assert.Equal(new Atomos(50), a.RemainderAfterDenomination(Denominations.Hya));
     }
 
