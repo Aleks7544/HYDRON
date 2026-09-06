@@ -1,5 +1,6 @@
 using System.Numerics;
 using HYDRON.Models;
+using Xunit;
 
 namespace HYDRON.Tests;
 
@@ -16,19 +17,16 @@ public class StateBlockTests
             b.AddTransactionBlockHash(MakeHash((char)('a' + (i % 26))) + i.ToString().PadLeft(0));
     }
 
-    // use unique hashes to avoid duplicate rejection
     private static void FillToCapacity(StateBlock b)
     {
         for (int i = 0; i < Block.Capacity; i++)
             b.AddTransactionBlockHash(i.ToString("x64").PadLeft(64, '0'));
     }
 
-    // --- Construction ---
-
     [Fact]
     public void Constructor_ValidArgs_InitialisesCorrectly()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         Assert.Equal(BigInteger.One, b.BlockNumber);
         Assert.Equal("prev_hash", b.PreviousHash);
         Assert.Equal("producer_addr", b.ProducerAddress);
@@ -52,12 +50,10 @@ public class StateBlockTests
         => Assert.Throws<ArgumentException>(() =>
             new StateBlock(BigInteger.Zero, "prev", ""));
 
-    // --- AddTransactionBlockHash ---
-
     [Fact]
     public void AddTransactionBlockHash_ValidHash_IncreasesCount()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         b.AddTransactionBlockHash(MakeHash('a'));
         Assert.Equal(1, b.TransactionBlockCount);
     }
@@ -69,7 +65,7 @@ public class StateBlockTests
     [Fact]
     public void AddTransactionBlockHash_Duplicate_Throws()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         b.AddTransactionBlockHash(MakeHash('a'));
         Assert.Throws<InvalidOperationException>(() => b.AddTransactionBlockHash(MakeHash('a')));
     }
@@ -77,7 +73,7 @@ public class StateBlockTests
     [Fact]
     public void AddTransactionBlockHash_AfterSealed_Throws()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         b.Seal(MakeHash('x'), MakeHash('y'), "global_state", Atomos.Zero);
         Assert.Throws<InvalidOperationException>(() => b.AddTransactionBlockHash(MakeHash('z')));
@@ -86,18 +82,16 @@ public class StateBlockTests
     [Fact]
     public void AddTransactionBlockHash_BeyondCapacity_Throws()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         Assert.Throws<InvalidOperationException>(() =>
             b.AddTransactionBlockHash(MakeHash('z')));
     }
 
-    // --- Seal ---
-
     [Fact]
     public void Seal_AtCapacity_SetsIsSealed()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         b.Seal(MakeHash('x'), MakeHash('y'), "global_state", new Atomos(999));
         Assert.True(b.IsSealed);
@@ -109,7 +103,7 @@ public class StateBlockTests
     [Fact]
     public void Seal_BelowCapacity_Throws()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         b.AddTransactionBlockHash(MakeHash('a'));
         Assert.Throws<InvalidOperationException>(() =>
             b.Seal(MakeHash('x'), MakeHash('y'), "global_state", Atomos.Zero));
@@ -118,7 +112,7 @@ public class StateBlockTests
     [Fact]
     public void Seal_EmptyGlobalStateRoot_Throws()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         Assert.Throws<ArgumentException>(() =>
             b.Seal(MakeHash('x'), MakeHash('y'), "", Atomos.Zero));
@@ -127,7 +121,7 @@ public class StateBlockTests
     [Fact]
     public void Seal_EmptyHash_Throws()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         Assert.Throws<ArgumentException>(() =>
             b.Seal("", MakeHash('y'), "global_state", Atomos.Zero));
@@ -136,7 +130,7 @@ public class StateBlockTests
     [Fact]
     public void Seal_EmptyMerkleRoot_Throws()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         Assert.Throws<ArgumentException>(() =>
             b.Seal(MakeHash('x'), "", "global_state", Atomos.Zero));
@@ -145,19 +139,17 @@ public class StateBlockTests
     [Fact]
     public void Seal_Twice_Throws()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         b.Seal(MakeHash('x'), MakeHash('y'), "global_state", Atomos.Zero);
         Assert.Throws<InvalidOperationException>(() =>
             b.Seal(MakeHash('p'), MakeHash('q'), "global_state2", Atomos.Zero));
     }
 
-    // --- IsValid ---
-
     [Fact]
     public void IsValid_BeforeSeal_ReturnsFalse()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         Assert.False(b.IsValid);
     }
@@ -165,7 +157,7 @@ public class StateBlockTests
     [Fact]
     public void IsValid_AfterSeal_ReturnsTrue()
     {
-        var b = MakeBlock();
+        StateBlock b = MakeBlock();
         FillToCapacity(b);
         b.Seal(MakeHash('x'), MakeHash('y'), "global_state", Atomos.Zero);
         Assert.True(b.IsValid);
