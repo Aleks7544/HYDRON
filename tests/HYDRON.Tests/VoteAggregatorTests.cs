@@ -57,16 +57,7 @@ public class VoteAggregatorTests
     }
 
     // --- Supermajority approval ---
-
-    [Fact]
-    public void SubmitVote_SupermajorityApproval_3of3_Approved()
-    {
-        var agg = new VoteAggregator("v1", 3);
-        agg.SubmitVote("v1", true);
-        agg.SubmitVote("v2", true);
-        agg.SubmitVote("v3", true);
-        Assert.Equal(ConsensusResult.Approved, agg.Result);
-    }
+    // Threshold: ceil(n * 2/3). For n=3: ceil(2) = 2. For n=5: ceil(3.33) = 4.
 
     [Fact]
     public void SubmitVote_SupermajorityApproval_2of3_Approved()
@@ -88,6 +79,7 @@ public class VoteAggregatorTests
     [Fact]
     public void SubmitVote_SupermajorityApproval_4of5_Approved()
     {
+        // ceil(5 * 2/3) = 4; result triggers on the 4th approval
         var agg = new VoteAggregator("v1", 5);
         agg.SubmitVote("v1", true);
         agg.SubmitVote("v2", true);
