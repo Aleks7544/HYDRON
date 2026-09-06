@@ -17,7 +17,7 @@ public class MempoolTests
             new Atomos(1000), fee ?? new Atomos(100),
             nonce ?? BigInteger.One, "sig", false);
         tx.SetHash(hash);
-        tx.SetPriority(priority);
+        tx.ChangePriority(priority); // must be called before PendingValidation
         tx.UpdateStatus(TransactionStatus.PendingValidation);
         return tx;
     }
@@ -162,11 +162,8 @@ public class MempoolTests
     public void PeekForBlock_OrdersByPriorityThenFeeThenTime()
     {
         var pool = new Mempool();
-        // low priority, low fee
-        pool.TryEnqueue(MakePendingTx(hash: new string('a', 64), fee: new Atomos(10), priority: Priority.Low));
-        // high priority, high fee
+        pool.TryEnqueue(MakePendingTx(hash: new string('a', 64), fee: new Atomos(10),  priority: Priority.Low));
         pool.TryEnqueue(MakePendingTx(hash: new string('b', 64), fee: new Atomos(500), priority: Priority.High));
-        // medium priority
         pool.TryEnqueue(MakePendingTx(hash: new string('c', 64), fee: new Atomos(200), priority: Priority.Medium));
 
         var result = pool.PeekForBlock(3);
@@ -218,11 +215,8 @@ public class MempoolTests
     public void EvictStaleBySender_EvictsOnlyStaleNonces()
     {
         var pool = new Mempool();
-        // nonce 1 — stale (below confirmed nonce 3)
         pool.TryEnqueue(MakePendingTx(hash: new string('a', 64), nonce: new BigInteger(1)));
-        // nonce 2 — stale
         pool.TryEnqueue(MakePendingTx(hash: new string('b', 64), nonce: new BigInteger(2)));
-        // nonce 3 — NOT stale (equal to confirmed nonce)
         pool.TryEnqueue(MakePendingTx(hash: new string('c', 64), nonce: new BigInteger(3)));
 
         int evicted = pool.EvictStaleBySender("alice", new BigInteger(3));
