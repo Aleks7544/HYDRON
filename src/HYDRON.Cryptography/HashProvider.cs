@@ -73,6 +73,9 @@ namespace HYDRON.Cryptography
                 .OrderBy(h => h, StringComparer.Ordinal)
                 .ToArray();
 
+            if (sorted.Length == 0) 
+                throw new ArgumentException("Cannot compute state root from an empty account set.", nameof(accountStateHashes));
+
             using IncrementalHashWriter writer = new();
             foreach (string hash in sorted)
                 writer.WriteString(hash);
@@ -83,13 +86,21 @@ namespace HYDRON.Cryptography
         private sealed class IncrementalHashWriter : IDisposable
         {
             private readonly IncrementalHash _hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            private readonly byte[] _buf = new byte[8];
 
             public void WriteString(string value)
             {
-                byte[] encoded = Encoding.UTF8.GetBytes(value);
-                WriteInt32(encoded.Length);
-                _hash.AppendData(encoded);
+                int maxLen = Encoding.UTF8.GetMaxByteCount(value.Length);
+                byte[] rented = System.Buffers.ArrayPool<byte>.Shared.Rent(maxLen);
+                try
+                {
+                    int written = Encoding.UTF8.GetBytes(value, rented);
+                    WriteInt32(written);
+                    _hash.AppendData(rented.AsSpan(0, written));
+                }
+                finally
+                {
+                    System.Buffers.ArrayPool<byte>.Shared.Return(rented);
+                }
             }
 
             public void WriteAtomos(Atomos value) => WriteString(value.ToString());
@@ -98,14 +109,16 @@ namespace HYDRON.Cryptography
 
             public void WriteInt32(int value)
             {
-                System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(_buf, value);
-                _hash.AppendData(_buf.AsSpan(0, 4));
+                Span<byte> buf = stackalloc byte[4];
+                System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(buf, value);
+                _hash.AppendData(buf);
             }
 
             public void WriteInt64(long value)
             {
-                System.Buffers.Binary.BinaryPrimitives.WriteInt64BigEndian(_buf, value);
-                _hash.AppendData(_buf.AsSpan(0, 8));
+                Span<byte> buf = stackalloc byte[8];
+                System.Buffers.Binary.BinaryPrimitives.WriteInt64BigEndian(buf, value);
+                _hash.AppendData(buf);
             }
 
             public void WriteBool(bool value) =>

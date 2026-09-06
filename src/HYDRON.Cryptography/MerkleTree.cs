@@ -14,6 +14,11 @@ namespace HYDRON.Cryptography
             if (transactionHashes.Count == 0)
                 return EmptyRoot;
 
+            if (transactionHashes.Any(h => h.Length != CryptoConstants.Sha256HexLength))
+                throw new ArgumentException(
+                    $"All transaction hashes must be {CryptoConstants.Sha256HexLength}-character lowercase hex strings.",
+                    nameof(transactionHashes));
+
             List<byte[]> level = transactionHashes
                 .Select(Convert.FromHexString)
                 .ToList();
