@@ -9,11 +9,12 @@ public class TransactionBlockTests
     private static TransactionBlock MakeBlock() =>
         new(BigInteger.One, "prev_hash", "producer_addr", new Atomos(42));
 
-    private static Transaction MakeFinalizedTx(string sender = "alice", string receiver = "bob")
+    private static Transaction MakeFinalizedTx(
+        string sender = "alice", string receiver = "bob", char hashFill = 'a')
     {
         Transaction tx = new Transaction(sender, receiver, new Atomos(1000), new Atomos(100),
             BigInteger.One, "sig_sender", false);
-        tx.SetHash("a" + new string('0', 63)); // 64-char hash
+        tx.SetHash(new string(hashFill, 64));
         tx.UpdateStatus(TransactionStatus.PendingValidation);
         tx.UpdateStatus(TransactionStatus.ConsensusReached);
         tx.UpdateStatus(TransactionStatus.Settled);
@@ -98,19 +99,19 @@ public class TransactionBlockTests
     [Fact]
     public void AddTransaction_AfterSealed_Throws()
     {
-        TransactionBlock b = MakeBlock();
-        Transaction tx = MakeFinalizedTx();
-        b.AddTransaction(tx);
-        b.Seal("b" + new string('0', 63), "c" + new string('0', 63), "state_root");
-        Assert.Throws<InvalidOperationException>(() => b.AddTransaction(MakeFinalizedTx("carol", "dave")));
+        var b = MakeBlock();
+        b.AddTransaction(MakeFinalizedTx(hashFill: 'a'));
+        b.Seal(new string('b', 64), new string('c', 64), "state_root");
+        Assert.Throws<InvalidOperationException>(() =>
+            b.AddTransaction(MakeFinalizedTx("carol", "dave", 'd')));
     }
 
     [Fact]
     public void GetTotalFees_SumsAllFees()
     {
-        TransactionBlock b = MakeBlock();
-        b.AddTransaction(MakeFinalizedTx("alice", "bob"));
-        b.AddTransaction(MakeFinalizedTx("carol", "dave"));
+        var b = MakeBlock();
+        b.AddTransaction(MakeFinalizedTx("alice", "bob", 'a'));
+        b.AddTransaction(MakeFinalizedTx("carol", "dave", 'b'));
         Assert.Equal(new Atomos(200), b.GetTotalFees());
     }
 
@@ -123,7 +124,7 @@ public class TransactionBlockTests
     {
         TransactionBlock b = MakeBlock();
         b.AddTransaction(MakeFinalizedTx());
-        b.Seal("b" + new string('0', 63), "c" + new string('0', 63), "state_root");
+        b.Seal(new string('b', 64), new string('c', 64), "state_root");
         Assert.True(b.IsSealed);
         Assert.True(b.IsValid);
     }
@@ -131,7 +132,7 @@ public class TransactionBlockTests
     [Fact]
     public void Seal_EmptyBlock_Throws()
         => Assert.Throws<InvalidOperationException>(() =>
-            MakeBlock().Seal("b" + new string('0', 63), "c" + new string('0', 63), "state_root"));
+            MakeBlock().Seal(new string('b', 64), new string('c', 64), "state_root"));
 
     [Fact]
     public void Seal_EmptyHash_Throws()
@@ -162,9 +163,9 @@ public class TransactionBlockTests
     {
         TransactionBlock b = MakeBlock();
         b.AddTransaction(MakeFinalizedTx());
-        b.Seal("b" + new string('0', 63), "c" + new string('0', 63), "state_root");
+        b.Seal(new string('b', 64), new string('c', 64), "state_root");
         Assert.Throws<InvalidOperationException>(() =>
-            b.Seal("d" + new string('0', 63), "e" + new string('0', 63), "state_root2"));
+            b.Seal(new string('d', 64), new string('e', 64), "state_root2"));
     }
 
     [Fact]
@@ -180,7 +181,7 @@ public class TransactionBlockTests
     {
         TransactionBlock b = MakeBlock();
         b.AddTransaction(MakeFinalizedTx());
-        b.Seal("b" + new string('0', 63), "c" + new string('0', 63), "state_root");
+        b.Seal(new string('b', 64), new string('c', 64), "state_root");
         Assert.True(b.IsValid);
     }
 }
