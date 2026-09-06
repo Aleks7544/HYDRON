@@ -1,7 +1,7 @@
 # HYDRON Phase 1 — Task State & Progress
 
 **Last Updated:** September 6, 2026
-**Format:** Area-based, reflects actual repository state as of last commit (`40fe121`)
+**Format:** Area-based, reflects actual repository state as of last commit (`a0c5c5b`)
 
 ---
 
@@ -65,26 +65,32 @@
 
 ### 1.3 Cryptography (`HYDRON.Cryptography`)
 
-- ✅ **1.3.1** `HashProvider` — SHA-256 canonical hasher; `IncrementalHashWriter` (private sealed, `IDisposable`); canonical field ordering for `Transaction`, `TransactionBlock` header, `StateBlock` header, and state root; `WriteAtomos` / `WriteBigInteger` / `WriteString` (length-prefixed UTF-8) / `WriteInt32` / `WriteInt64` / `WriteBool`; `stackalloc` throughout (no heap alloc in fixed-width writes); `ArrayPool<byte>` in `WriteString` to avoid per-call heap allocation; `ComputeStateRoot` sorts hashes lexicographically (order-independent); empty account set guard
-- ✅ **1.3.2** `MerkleTree` — binary Merkle builder over ordered SHA-256 hex hash list; odd-level duplicate padding (Bitcoin-style); `stackalloc byte[64]` pair-hash; input hash length validation against `CryptoConstants.Sha256HexLength` before processing; `EmptyRoot` sentinel for empty TX list
-- ✅ **1.3.3** `SignatureVerifier` — stateless Ed25519 verify wrapper (decoupled from `KeySafe`); `Verify(string canonicalData, …)` for UTF-8 signed data; `VerifyBytes(byte[]?, …)` for raw byte payloads; length guards on signature (64 B) and public key (32 B) before `PublicKey.Import`; catch-all returns `false` (never throws)
+- ✅ **1.3.1** `HashProvider` — SHA-256 canonical hasher; `IncrementalHashWriter` (private sealed, `IDisposable`); canonical field ordering for `Transaction`, `TransactionBlock` header, `StateBlock` header, and state root; `WriteAtomos` / `WriteBigInteger` / `WriteString` (length-prefixed UTF-8, `ArrayPool<byte>`) / `WriteInt32` / `WriteInt64` / `WriteBool`; `stackalloc` for all fixed-width writes; `ComputeStateRoot` sorts hashes lexicographically; empty account set guard throws `ArgumentException`
+- ✅ **1.3.2** `MerkleTree` — binary Merkle builder over ordered SHA-256 hex hash list; odd-level duplicate padding (Bitcoin-style); `stackalloc byte[64]` pair-hash; input hash length validation against `CryptoConstants.Sha256HexLength`; `EmptyRoot` sentinel for empty TX list
+- ✅ **1.3.3** `SignatureVerifier` — stateless Ed25519 verify wrapper (decoupled from `KeySafe`); `Verify(string, …)` for UTF-8 signed data; `VerifyBytes(byte[]?, …)` for raw byte payloads; length guards on signature (64 B) and public key (32 B) before `PublicKey.Import`; catch-all returns `false`
 - ✅ **1.3.4** `CryptoConstants` — `Ed25519PublicKeyBytes` (32), `Ed25519PrivateKeyBytes` (32), `Ed25519SignatureBytes` (64), `Sha256Bytes` (32), `Sha256HexLength` (64), `GenesisPreviousHash` (64 × `'0'`)
-- ✅ **1.3.5** `HYDRON.Cryptography.csproj` — class library (no `OutputType Exe`); `PublishAot=true`; `NSec.Cryptography` 26.4.0; `ProjectReference` to `HYDRON.Models`; `InternalsVisibleTo` added for `HYDRON.Tests`
+- ✅ **1.3.5** `HYDRON.Cryptography.csproj` — class library; `PublishAot=true`; `NSec.Cryptography` 26.4.0; `ProjectReference` to `HYDRON.Models`
 
 ### Cryptography — Open items
 
-- `KeySafe.Verify()` (in `HYDRON.Models`) is a functional duplicate of `SignatureVerifier.Verify()` — both must be kept in sync if the canonical data format ever changes; consider routing `KeySafe.Verify` through `SignatureVerifier` once the project reference is available
+- `KeySafe.Verify()` (in `HYDRON.Models`) is a functional duplicate of `SignatureVerifier.Verify()` — keep in sync if canonical data format changes; consider routing through `SignatureVerifier` once project reference is available
 
 ---
 
 ### 1.4 Configuration & Bootstrapping (`HYDRON.Core`)
 
-- 🏗️ Project stub exists
+- ✅ **1.4.5** `SystemConstants` — `TxReward` (1 HYA), `TransactionBlockReward` (1 HYB), `StateBlockReward` (1 HYG), `MinimumFee` (1 HYD); `TransactionsPerBlock` (100), `BlocksPerStateBlock` (100), `ImmutabilityDepth` (100); `SupermajorityThreshold` (2.0/3.0); `HydrogenIonizationEnergyEv` (13.6m); `IsSupermajority(int approvals, int total)` helper using `Math.Ceiling`
+- ✅ **1.4.6** `HYDRON.Core.csproj` — class library; `PublishAot=true` (deferred — AOT compatibility to be validated at build phase); `ProjectReference` to `HYDRON.Models`, `HYDRON.Cryptography`, `HYDRON.Database`
 - 🔲 **1.4.1** `appsettings.json` template (mainnet / testnet / dev variants)
 - 🔲 **1.4.2** Strongly-typed `HydronConfig` class
 - 🔲 **1.4.3** DI service registry (`IServiceCollection` extensions)
 - 🔲 **1.4.4** `HydronEngine` — main bootstrap; wires DB, crypto, network, validator, RPC
-- 🔲 **1.4.5** `SystemConstants` — reward amounts (1 HYA/TX, 1 HYB/block, 1 HYG/state-block), block sizes (100 TX, 100 blocks), consensus threshold (2/3), minimum fee (1 HYD), immutability window (100 blocks), physics constant (13.6 eV)
+
+### Core — Open items
+
+- `PublishAot=true` on `HYDRON.Core` will likely conflict with `Microsoft.Extensions.DependencyInjection` reflection-based service scanning — to be resolved at build/publish phase; Option A is `PublishAot=false`, Option B is AOT-compatible source-gen DI
+
+---
 
 ### 1.5 Error Handling & Logging
 
@@ -105,7 +111,8 @@
 - 🔲 **1.6.8** `DatabaseTests` — round-trip persist/restore for all 5 model types; key ordering correctness; batch atomicity
 - 🔲 **1.6.9** `HashProviderTests` — known-vector TX hash; block header hash determinism; state root sort-independence; empty account set guard
 - 🔲 **1.6.10** `MerkleTreeTests` — single element; even/odd lists; duplicate padding; empty list; invalid hash length rejection
-- 🔲 **1.6.11** `SignatureVerifierTests` — valid signature round-trip; wrong key returns false; tampered data returns false; malformed Base64 returns false; wrong length returns false
+- 🔲 **1.6.11** `SignatureVerifierTests` — valid round-trip; wrong key; tampered data; malformed Base64; wrong length
+- 🔲 **1.6.12** `SystemConstantsTests` — `IsSupermajority` boundary cases (0/0, 1/1, 2/3, 66/100, 67/100, 65/100)
 
 ---
 
@@ -124,7 +131,7 @@
 - 🔲 **2.2.2** Sender signature verification on ingest
 - 🔲 **2.2.3** Balance sufficiency check (amount + fee ≤ balance)
 - 🔲 **2.2.4** Nonce ordering check (sender nonce must equal account nonce + 1)
-- 🔲 **2.2.5** Fee validation — minimum 1 HYD enforced at service layer
+- 🔲 **2.2.5** Fee validation — minimum `SystemConstants.MinimumFee` enforced at service layer
 - 🔲 **2.2.6** Double-spend prevention via nonce reservation in mempool
 - 🔲 **2.2.7** Transaction status lifecycle orchestration
 - 🔲 **2.2.8** Transaction queries (by hash, by sender, by status, by block number)
@@ -149,7 +156,7 @@
 - 🔲 **3.2.2** Signature verification step (using `HYDRON.Cryptography.SignatureVerifier`)
 - 🔲 **3.2.3** Balance sufficiency re-check at validation time
 - 🔲 **3.2.4** Nonce ordering re-check at validation time
-- 🔲 **3.2.5** Consensus vote aggregation — monitor `RequiredSupermajorityValidationsCount`
+- 🔲 **3.2.5** Consensus vote aggregation via `SystemConstants.IsSupermajority`
 - 🔲 **3.2.6** First-validator veto gate
 - 🔲 **3.2.7** Auto-finalization when 66%+ approve; auto-rejection when majority reject
 
@@ -180,25 +187,25 @@
 
 ### 4.1 TransactionBlock
 
-- 🔲 **4.1.1** `TransactionBlockBuilder` — assembles 100 finalized transactions into a `TransactionBlock`
+- 🔲 **4.1.1** `TransactionBlockBuilder` — assembles `SystemConstants.TransactionsPerBlock` finalized transactions into a `TransactionBlock`
 - 🔲 **4.1.2** Merkle root computation via `HYDRON.Cryptography.MerkleTree`
 - 🔲 **4.1.3** Block hash computation via `HYDRON.Cryptography.HashProvider`
 - 🔲 **4.1.4** Genesis block factory (handles `previousHash = CryptoConstants.GenesisPreviousHash`)
 
 ### 4.2 StateBlock
 
-- 🔲 **4.2.1** `StateBlockBuilder` — assembles from 100 confirmed TransactionBlocks
+- 🔲 **4.2.1** `StateBlockBuilder` — assembles from `SystemConstants.BlocksPerStateBlock` confirmed TransactionBlocks
 - 🔲 **4.2.2** State root via `HashProvider.ComputeStateRoot`
-- 🔲 **4.2.3** Electricity price consensus: median of 100 TransactionBlock oracle snapshots (66%+ validator agreement)
+- 🔲 **4.2.3** Electricity price consensus: median of oracle snapshots (66%+ validator agreement)
 - 🔲 **4.2.4** `IBlockRepository` read/write for StateBlocks
-- 🔲 **4.2.5** Immutability enforcement: `IsImmutable = true` after 100-StateBlock depth
+- 🔲 **4.2.5** Immutability enforcement: `IsImmutable = true` after `SystemConstants.ImmutabilityDepth` StateBlocks
 
 ### 4.3 Block Finality
 
 - 🔲 **4.3.1** Finality depth tracker
 - 🔲 **4.3.2** Deterministic finality flag set at 66%+ supermajority
 - 🔲 **4.3.3** State settlement — apply all TX balance changes on StateBlock commit
-- 🔲 **4.3.4** Reorg window: 100-StateBlock depth
+- 🔲 **4.3.4** Reorg window: `SystemConstants.ImmutabilityDepth` StateBlocks
 
 ---
 
@@ -207,9 +214,9 @@
 ### 5.1 Reward Calculation
 
 - 🔲 **5.1.1** `RewardCalculator` service
-- 🔲 **5.1.2** Per-TX core reward: 1 HYA (100 atomos)
-- 🔲 **5.1.3** Per-TransactionBlock reward: 1 HYB (10,000 atomos)
-- 🔲 **5.1.4** Per-StateBlock reward: 1 HYG (100,000,000 atomos)
+- 🔲 **5.1.2** Per-TX core reward: `SystemConstants.TxReward` (1 HYA)
+- 🔲 **5.1.3** Per-TransactionBlock reward: `SystemConstants.TransactionBlockReward` (1 HYB)
+- 🔲 **5.1.4** Per-StateBlock reward: `SystemConstants.StateBlockReward` (1 HYG)
 - 🔲 **5.1.5** Reward multiplier application based on validator reputation tier
 - 🔲 **5.1.6** Consistency check: sum of `ValidatorReward.TotalReward` = `BlockReward` totals (excl. fees)
 
@@ -217,7 +224,7 @@
 
 - 🔲 **5.2.1** Fee collection from sender balance at transaction ingest
 - 🔲 **5.2.2** Fee distribution to first validator only
-- 🔲 **5.2.3** Minimum fee enforcement: 1 HYD (10^16 atomos)
+- 🔲 **5.2.3** Minimum fee enforcement: `SystemConstants.MinimumFee` (1 HYD)
 
 ---
 
@@ -236,13 +243,13 @@
 
 - 🔲 **6.2.1** Population-weighted global average USD/kWh
 - 🔲 **6.2.2** Unit conversion chain: USD/kWh → USD/J → USD/eV
-- 🔲 **6.2.3** `atomos_usd_price = 13.6 eV × consensus_usd_per_eV`
+- 🔲 **6.2.3** `atomos_usd_price = SystemConstants.HydrogenIonizationEnergyEv × consensus_usd_per_eV`
 - 🔲 **6.2.4** Price update cadence: one consensus vote per StateBlock boundary
 
 ### 6.3 Oracle Consensus
 
 - 🔲 **6.3.1** Each validator independently fetches and computes the electricity price
-- 🔲 **6.3.2** 66%+ validator agreement required
+- 🔲 **6.3.2** 66%+ validator agreement required (`SystemConstants.IsSupermajority`)
 - 🔲 **6.3.3** Accepted price embedded in each `TransactionBlock` as `ElectricityPriceAtomosPerEv`
 - 🔲 **6.3.4** Outlier rejection: proposals beyond ±20% of median discarded
 
@@ -331,6 +338,7 @@
 - 🔲 **9.1.9** `HashProviderTests` — known-vector TX hash; block header hash determinism; state root sort-independence; empty account set guard
 - 🔲 **9.1.10** `MerkleTreeTests` — single element; even/odd lists; duplicate padding; empty list; invalid hash length rejection
 - 🔲 **9.1.11** `SignatureVerifierTests` — valid round-trip; wrong key; tampered data; malformed Base64; wrong length
+- 🔲 **9.1.12** `SystemConstantsTests` — `IsSupermajority` boundary cases (0/0, 1/1, 2/3, 66/100, 67/100, 65/100)
 
 ### 9.2 Integration Tests
 
@@ -382,7 +390,8 @@
 | Data Models — `HYDRON.Models` (12 classes) | ✅ Complete |
 | Database Layer — `HYDRON.Database` | ✅ Complete |
 | Cryptography — `HYDRON.Cryptography` | ✅ Complete |
-| Core bootstrapping & constants — `HYDRON.Core` | 🏗️ Stub only |
+| Core constants — `HYDRON.Core` (`SystemConstants`) | ✅ Complete |
+| Core services — `HYDRON.Core` (engine, DI, config) | 🔲 Not started |
 | Validator services — `HYDRON.Validator` | 🏗️ Stub only |
 | Connectivity / Oracle — `HYDRON.Connectivity` | 🏗️ Stub only |
 | Network / P2P — `HYDRON.Network` | 🏗️ Stub only |
@@ -395,22 +404,18 @@
 
 ## Immediate Next Priorities
 
-### Step 2 — `SystemConstants` in `HYDRON.Core` (next)
-1. Reward amounts as `Atomos`: `TxReward = 1 HYA`, `TransactionBlockReward = 1 HYB`, `StateBlockReward = 1 HYG`
-2. Block capacities: `TransactionsPerBlock = 100`, `BlocksPerStateBlock = 100`
-3. Consensus threshold: `SupermajorityNumerator = 2`, `SupermajorityDenominator = 3`
-4. Minimum fee: `MinimumFee = 1 HYD`
-5. Immutability window: `ImmutabilityDepth = 100` (StateBlocks)
-6. Physics constant: `HydrogenIonizationEnergyEv = 13.6m` (decimal)
-7. `InternalsVisibleTo` grant from `HYDRON.Core` to `HYDRON.Tests`
-
-### Step 3 — Unit Tests (`HYDRON.Tests`)
-8. Model tests (1.6.1–1.6.7) — all `Restore()` factories are in place
-9. Cryptography tests (1.6.9–1.6.11) — `HashProvider`, `MerkleTree`, `SignatureVerifier`
-10. Database tests (1.6.8) — round-trip for all 5 types; key ordering; batch atomicity
+### Step 3 — Unit Tests (`HYDRON.Tests`) (next)
+1. Set up `HYDRON.Tests.csproj` — xUnit; `ProjectReference` to Models, Cryptography, Database, Core; `InternalsVisibleTo` grants from all four projects
+2. `SystemConstantsTests` — `IsSupermajority` boundary cases
+3. `AtomosTests` — arithmetic, denomination round-trips, overflow, equality
+4. `HashProviderTests` — TX hash known-vector; state root sort-independence; empty guard
+5. `MerkleTreeTests` — even/odd/single/empty/invalid-length cases
+6. `SignatureVerifierTests` — valid round-trip; failure cases
+7. `DatabaseLayerTests` — round-trip for all 5 model types; key ordering; batch atomicity
+8. Remaining model tests (Account, Transaction, Validation, Validator, TransactionBlock, KeySafe)
 
 ### Step 4 — `HYDRON.Core` service layer
-11. `AccountService` — create, load, save, balance query
-12. `TransactionBuilder` + ingest pipeline (sig verify, balance check, nonce check, fee guard)
-13. `RewardCalculator` — deterministic reward computation from block contents
-14. `HydronEngine` — main bootstrap wiring DB + crypto + services
+9. `AccountService` — create, load, save, balance query
+10. `TransactionBuilder` + ingest pipeline (sig verify, balance check, nonce check, fee guard)
+11. `RewardCalculator` — deterministic reward computation from block contents
+12. `HydronEngine` — main bootstrap wiring DB + crypto + services
