@@ -1,6 +1,7 @@
 using NSec.Cryptography;
 using System.Text;
 using HYDRON.Cryptography;
+using Xunit;
 
 namespace HYDRON.Tests;
 
@@ -31,69 +32,67 @@ public class SignatureVerifierTests
         return (Convert.ToBase64String(pub), Convert.ToBase64String(sig));
     }
 
-    // --- Verify (string overload) ---
-
     [Fact]
     public void Verify_ValidSignature_ReturnsTrue()
     {
-        var (pub, sig) = Sign("hello hydron");
+        (string pub, string sig) = Sign("hello hydron");
         Assert.True(SignatureVerifier.Verify("hello hydron", sig, pub));
     }
 
     [Fact]
     public void Verify_WrongKey_ReturnsFalse()
     {
-        var (_, sig) = Sign("hello");
-        var (wrongPub, _) = Sign("other");
+        (_, string sig) = Sign("hello");
+        (string wrongPub, _) = Sign("other");
         Assert.False(SignatureVerifier.Verify("hello", sig, wrongPub));
     }
 
     [Fact]
     public void Verify_TamperedData_ReturnsFalse()
     {
-        var (pub, sig) = Sign("original");
+        (string pub, string sig) = Sign("original");
         Assert.False(SignatureVerifier.Verify("tampered", sig, pub));
     }
 
     [Fact]
     public void Verify_EmptyData_ReturnsFalse()
     {
-        var (pub, sig) = Sign("data");
+        (string pub, string sig) = Sign("data");
         Assert.False(SignatureVerifier.Verify("", sig, pub));
     }
 
     [Fact]
     public void Verify_EmptySignature_ReturnsFalse()
     {
-        var (pub, _) = Sign("data");
+        (string pub, _) = Sign("data");
         Assert.False(SignatureVerifier.Verify("data", "", pub));
     }
 
     [Fact]
     public void Verify_EmptyPublicKey_ReturnsFalse()
     {
-        var (_, sig) = Sign("data");
+        (_, string sig) = Sign("data");
         Assert.False(SignatureVerifier.Verify("data", sig, ""));
     }
 
     [Fact]
     public void Verify_BadBase64Signature_ReturnsFalse()
     {
-        var (pub, _) = Sign("data");
+        (string pub, _) = Sign("data");
         Assert.False(SignatureVerifier.Verify("data", "not_base64!!!", pub));
     }
 
     [Fact]
     public void Verify_BadBase64PublicKey_ReturnsFalse()
     {
-        var (_, sig) = Sign("data");
+        (_, string sig) = Sign("data");
         Assert.False(SignatureVerifier.Verify("data", sig, "not_base64!!!"));
     }
 
     [Fact]
     public void Verify_WrongSignatureLength_ReturnsFalse()
     {
-        var (pub, _) = Sign("data");
+        (string pub, _) = Sign("data");
         string shortSig = Convert.ToBase64String(new byte[16]);
         Assert.False(SignatureVerifier.Verify("data", shortSig, pub));
     }
@@ -101,18 +100,16 @@ public class SignatureVerifierTests
     [Fact]
     public void Verify_WrongPublicKeyLength_ReturnsFalse()
     {
-        var (_, sig) = Sign("data");
+        (_, string sig) = Sign("data");
         string shortKey = Convert.ToBase64String(new byte[16]);
         Assert.False(SignatureVerifier.Verify("data", sig, shortKey));
     }
-
-    // --- VerifyBytes ---
 
     [Fact]
     public void VerifyBytes_ValidSignature_ReturnsTrue()
     {
         byte[] data = [0x01, 0x02, 0x03];
-        var (pub, sig) = SignBytes(data);
+        (string pub, string sig) = SignBytes(data);
         Assert.True(SignatureVerifier.VerifyBytes(data, sig, pub));
     }
 
@@ -120,21 +117,21 @@ public class SignatureVerifierTests
     public void VerifyBytes_TamperedData_ReturnsFalse()
     {
         byte[] data = [0x01, 0x02, 0x03];
-        var (pub, sig) = SignBytes(data);
+        (string pub, string sig) = SignBytes(data);
         Assert.False(SignatureVerifier.VerifyBytes([0xFF, 0x02, 0x03], sig, pub));
     }
 
     [Fact]
     public void VerifyBytes_NullData_ReturnsFalse()
     {
-        var (pub, sig) = SignBytes([0x01]);
+        (string pub, string sig) = SignBytes([0x01]);
         Assert.False(SignatureVerifier.VerifyBytes(null, sig, pub));
     }
 
     [Fact]
     public void VerifyBytes_EmptyData_ReturnsFalse()
     {
-        var (pub, sig) = SignBytes([0x01]);
+        (string pub, string sig) = SignBytes([0x01]);
         Assert.False(SignatureVerifier.VerifyBytes([], sig, pub));
     }
 }
