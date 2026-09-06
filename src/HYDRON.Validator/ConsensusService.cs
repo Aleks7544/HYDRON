@@ -14,12 +14,10 @@ namespace HYDRON.Validator
 
         public ConsensusService(
             Transaction tx,
-            IReadOnlyList<Models.Validator> assignedValidators,
-            IReadOnlyList<ValidatorRank> ranks)
+            IReadOnlyList<Models.Validator> assignedValidators)
         {
             ArgumentNullException.ThrowIfNull(tx);
             ArgumentNullException.ThrowIfNull(assignedValidators);
-            ArgumentNullException.ThrowIfNull(ranks);
 
             if (assignedValidators.Count == 0)
                 throw new ArgumentException(
