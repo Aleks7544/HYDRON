@@ -109,7 +109,7 @@ public class TransactionBlockTests
     [Fact]
     public void GetTotalFees_SumsAllFees()
     {
-        var b = MakeBlock();
+        TransactionBlock b = MakeBlock();
         b.AddTransaction(MakeFinalizedTx("alice", "bob", 'a'));
         b.AddTransaction(MakeFinalizedTx("carol", "dave", 'b'));
         Assert.Equal(new Atomos(200), b.GetTotalFees());
