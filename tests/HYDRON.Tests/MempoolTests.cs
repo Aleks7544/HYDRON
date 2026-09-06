@@ -18,7 +18,7 @@ public class MempoolTests
             new Atomos(1000), fee ?? new Atomos(100),
             nonce ?? BigInteger.One, "sig", false);
         tx.SetHash(hash);
-        tx.SetPriority(priority);
+        tx.ChangePriority(priority); // must be called before PendingValidation
         tx.UpdateStatus(TransactionStatus.PendingValidation);
         return tx;
     }
