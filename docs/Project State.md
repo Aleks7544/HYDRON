@@ -1,7 +1,7 @@
 # HYDRON Phase 1 — Task State & Progress
 
-**Last Updated:** August 25, 2026
-**Format:** Area-based, reflects actual repository state as of last commit
+**Last Updated:** September 6, 2026
+**Format:** Area-based, reflects actual repository state as of last commit (`40fe121`)
 
 ---
 
@@ -26,17 +26,16 @@
 - ✅ **1.1.4** `Validator` — validator account; staking/withdrawal; reputation score; correct/total vote counters; penalty application; tier (`Core`/`Edge`); status (`Active`/`Warned`/`Suspended`/`Penalized`/`Inactive`/`Unreachable`); network endpoint validation (IPv4/IPv6 address-family verified); `_confirmedValidationIds` / `_rejectedValidationIds` sets; private restoration constructor + `internal static Restore()` factory
 - ✅ **1.1.5** `Validation` — per-validator vote record; sign-before-confirm/reject enforced; `Penalize` works on both `Confirmed` and `Rejected` outcomes; reward assignment; speed tracking
 - ✅ **1.1.6** `TransactionBlock` — 100-TX block structure; `Lock`-protected `Seal` and `AddTransaction`; `ElectricityPriceAtomosPerEv` field (oracle snapshot at block-production time); `StateRoot`; `IsSealed` changed to `private protected set`; `internal RestoreSealed()` method added; private restoration constructor + `internal static Restore()` factory; `_restoredTransactionHashes` field for DB-load path
-- ✅ **1.1.7** `StateBlock` — seals 100 `TransactionBlock`s; `GlobalStateRoot`; `TotalFeesCollected`; stores `TransactionBlockHashes` only (no redundant electricity price — derived from referenced TransactionBlocks); private restoration constructor + `internal static Restore()` factory
+- ✅ **1.1.7** `StateBlock` — seals 100 `TransactionBlock`s; `GlobalStateRoot`; `TotalFeesCollected`; stores `TransactionBlockHashes` only; private restoration constructor + `internal static Restore()` factory
 - ✅ **1.1.8** `Rewards` — `BlockReward` + `ValidatorReward` records; `TotalMinted` excludes fee rewards; `ValidatorReward.TotalReward` = blockReward + validationReward + feeReward; settlement status
-- ✅ **1.1.9** `KeySafe` — HD wallet (BIP-32-style Ed25519 + X25519); HMAC-SHA-512 child key derivation; stealth payment; key rotation; `IDisposable` with `CryptographicOperations.ZeroMemory`
+- ✅ **1.1.9** `KeySafe` — HD wallet (BIP-32-style Ed25519 + X25519); HMAC-SHA-512 child key derivation; stealth payment; key rotation; `IDisposable` with `CryptographicOperations.ZeroMemory`; NSec.Cryptography 26.4.0 / libsodium 1.0.22
 - ✅ **1.1.10** `ValidatorRank` — ranking snapshot record; normalized reputation, uptime, speed, stake fields; tier classification
 - ✅ **1.1.11** `Enumerators` — all domain enums: `TransactionStatus`, `ValidationStatus`, `ValidatorStatus`, `ValidatorTier`, `Priority`, `PrivacyMode`, `RewardStatus`
 - ✅ **1.1.12** `Mempool` — pending transaction queue; thread-safe; priority ordering
 
 ### Models — Open items
 
-- `Block.cs` `IsSealed` changed to `private protected set` — verify no unintended external mutation paths introduced
-- `TransactionBlock._restoredTransactionHashes` is populated on DB restore path; the engine must hydrate full `Transaction` objects from those hashes post-load (BlockRepository stores hashes only, not embedded transaction objects)
+- `TransactionBlock._restoredTransactionHashes` is populated on DB restore path; the engine must hydrate full `Transaction` objects from those hashes post-load
 
 ---
 
@@ -44,34 +43,39 @@
 
 - ✅ **1.2.1** `IDataStore` — generic key/value contract: `Put`, `TryGet`, `Delete`, `Exists`, `WriteBatch` (atomic multi-key), `Iterate` (prefix scan)
 - ✅ **1.2.2** `RocksDbDataStore : IDataStore` — RocksDB wrapper using **RocksDB by Curiosity** NuGet (v11.8.1.4423); UTF-8 key encoding; `IDisposable`; `ObjectDisposedException` guards on all methods
-- ✅ **1.2.3** `KeyScheme` — all RocksDB key patterns; string-indexed entities use `PREFIX:IDENTIFIER`; block-number keys use **256-bit big-endian hex encoding** (64-char suffix) for correct lexicographic ordering without a padding magic constant; matches SHA-256 bit width used throughout the system
+- ✅ **1.2.3** `KeyScheme` — all RocksDB key patterns; string-indexed entities use `PREFIX:IDENTIFIER`; block-number keys use **256-bit big-endian hex encoding** (64-char suffix) for correct lexicographic ordering
 - ✅ **1.2.4** `IAccountRepository` + `AccountRepository` — save/get by address/exists/get-all; prefix scan via `KeyScheme.AccountPrefix`
 - ✅ **1.2.5** `ITransactionRepository` + `TransactionRepository` — save/get by hash/exists/get-by-sender/get-all; atomic dual-write (primary + sender index) via `WriteBatch`
-- ✅ **1.2.6** `IValidatorRepository` + `ValidatorRepository` — save/get by address/exists/get-all/get-active/get-by-tier; separate `val:` prefix from `acc:` prefix
+- ✅ **1.2.6** `IValidatorRepository` + `ValidatorRepository` — save/get by address/exists/get-all/get-active/get-by-tier
 - ✅ **1.2.7** `IBlockRepository` + `BlockRepository` — save/get TransactionBlocks and StateBlocks by number and by hash; latest block number metadata keys; sealed-only enforcement before persist
-- ✅ **1.2.8** Batch write operations — `WriteBatch` on `IDataStore`; used by `TransactionRepository` (primary + index) and `BlockRepository` (block + hash-index + latest-tip) atomically
-- ✅ **1.2.9** Range / iterator queries — `Iterate(prefix)` on `IDataStore`; used by all repositories for full-scan and sender-prefix scans
-- ✅ **1.2.10** JSON serialization codec — `ISerializer` / `HydronJsonSerializer` (System.Text.Json); DTOs for all 5 model types; `BigInteger` and `Atomos` serialized as decimal strings to preserve full precision; `DateTimeOffset` via built-in JSON support
-- ✅ **1.2.11** DTO layer — `AccountDto`, `ValidatorDto : AccountDto`, `TransactionDto`, `TransactionBlockDto`, `StateBlockDto`; `AccountDto` is non-sealed to allow `ValidatorDto` inheritance
-- ✅ **1.2.12** `DtoMapper` — static bidirectional mapping between domain models and DTOs; calls `Restore()` factories on all model types; `Atomos` cast via `(BigInteger)` operator
-- ✅ **1.2.13** `InternalsVisibleTo` — `HYDRON.Models.csproj` grants `HYDRON.Database` access to all `internal` members (required for `Restore()` factories)
-- ✅ **1.2.14** `HYDRON.Database.csproj` — `PublishAot=false` (RocksDB native interop incompatible with AOT); `ProjectReference` to `HYDRON.Models`
+- ✅ **1.2.8** Batch write operations — `WriteBatch` on `IDataStore`; atomic multi-key commits
+- ✅ **1.2.9** Range / iterator queries — `Iterate(prefix)` on `IDataStore`
+- ✅ **1.2.10** JSON serialization codec — `ISerializer` / `HydronJsonSerializer` (System.Text.Json); `BigInteger` and `Atomos` as decimal strings; `DateTimeOffset` via built-in JSON support
+- ✅ **1.2.11** DTO layer — `AccountDto`, `ValidatorDto : AccountDto`, `TransactionDto`, `TransactionBlockDto`, `StateBlockDto`
+- ✅ **1.2.12** `DtoMapper` — static bidirectional mapping; calls `Restore()` factories on all model types
+- ✅ **1.2.13** `InternalsVisibleTo` — `HYDRON.Models.csproj` grants `HYDRON.Database` access to `internal` members
+- ✅ **1.2.14** `HYDRON.Database.csproj` — `PublishAot=false`; `ProjectReference` to `HYDRON.Models`
 
 ### Database — Open items
 
-- `HydronJsonSerializer` uses reflection-based `System.Text.Json` — acceptable for now since `PublishAot=false` on this project; revisit if AOT is ever required
-- `ValidatorRepository.GetActive()` and `GetByTier()` perform full scans and filter in-memory; acceptable at current scale, but a secondary index per status/tier may be needed at network scale
-- `BlockRepository` stores `TransactionBlock` with **transaction hashes only** (not embedded `Transaction` objects); the engine layer is responsible for hydrating full transactions after loading a block
+- `ValidatorRepository.GetActive()` and `GetByTier()` perform full scans and filter in-memory; a secondary index may be needed at network scale
+- `BlockRepository` stores `TransactionBlock` with **transaction hashes only**; engine layer responsible for hydrating full transactions post-load
 
 ---
 
 ### 1.3 Cryptography (`HYDRON.Cryptography`)
 
-- 🏗️ Project stub exists
-- 🔲 **1.3.1** `HashProvider` — SHA-256 canonical hasher for transactions, blocks, and state roots
-- 🔲 **1.3.2** `MerkleTree` — binary Merkle tree builder from transaction hash list; produces root accepted by `TransactionBlock.Seal()`
-- 🔲 **1.3.3** `SignatureVerifier` — Ed25519 verify wrapper used by services (decoupled from `KeySafe`)
-- 🔲 **1.3.4** `CryptoConstants` — system-wide crypto parameter definitions
+- ✅ **1.3.1** `HashProvider` — SHA-256 canonical hasher; `IncrementalHashWriter` (private sealed, `IDisposable`); canonical field ordering for `Transaction`, `TransactionBlock` header, `StateBlock` header, and state root; `WriteAtomos` / `WriteBigInteger` / `WriteString` (length-prefixed UTF-8) / `WriteInt32` / `WriteInt64` / `WriteBool`; `stackalloc` throughout (no heap alloc in fixed-width writes); `ArrayPool<byte>` in `WriteString` to avoid per-call heap allocation; `ComputeStateRoot` sorts hashes lexicographically (order-independent); empty account set guard
+- ✅ **1.3.2** `MerkleTree` — binary Merkle builder over ordered SHA-256 hex hash list; odd-level duplicate padding (Bitcoin-style); `stackalloc byte[64]` pair-hash; input hash length validation against `CryptoConstants.Sha256HexLength` before processing; `EmptyRoot` sentinel for empty TX list
+- ✅ **1.3.3** `SignatureVerifier` — stateless Ed25519 verify wrapper (decoupled from `KeySafe`); `Verify(string canonicalData, …)` for UTF-8 signed data; `VerifyBytes(byte[]?, …)` for raw byte payloads; length guards on signature (64 B) and public key (32 B) before `PublicKey.Import`; catch-all returns `false` (never throws)
+- ✅ **1.3.4** `CryptoConstants` — `Ed25519PublicKeyBytes` (32), `Ed25519PrivateKeyBytes` (32), `Ed25519SignatureBytes` (64), `Sha256Bytes` (32), `Sha256HexLength` (64), `GenesisPreviousHash` (64 × `'0'`)
+- ✅ **1.3.5** `HYDRON.Cryptography.csproj` — class library (no `OutputType Exe`); `PublishAot=true`; `NSec.Cryptography` 26.4.0; `ProjectReference` to `HYDRON.Models`; `InternalsVisibleTo` added for `HYDRON.Tests`
+
+### Cryptography — Open items
+
+- `KeySafe.Verify()` (in `HYDRON.Models`) is a functional duplicate of `SignatureVerifier.Verify()` — both must be kept in sync if the canonical data format ever changes; consider routing `KeySafe.Verify` through `SignatureVerifier` once the project reference is available
+
+---
 
 ### 1.4 Configuration & Bootstrapping (`HYDRON.Core`)
 
@@ -85,9 +89,9 @@
 ### 1.5 Error Handling & Logging
 
 - 🔲 **1.5.1** Custom exception hierarchy (`HydronException`, `ConsensusException`, `InsufficientFundsException`, `InvalidTransactionException`, `CryptographyException`)
-- 🔲 **1.5.2** Structured error codes & result types (`Result<T, HydronError>` pattern to replace throw-everywhere)
+- 🔲 **1.5.2** Structured error codes & result types (`Result<T, HydronError>` pattern)
 - 🔲 **1.5.3** `IHydronLogger` abstraction
-- 🔲 **1.5.4** Structured logging via `Microsoft.Extensions.Logging` with context enrichment (block number, validator address, TX hash)
+- 🔲 **1.5.4** Structured logging via `Microsoft.Extensions.Logging` with context enrichment
 
 ### 1.6 Unit Tests (`HYDRON.Tests`)
 
@@ -99,6 +103,9 @@
 - 🔲 **1.6.6** `KeySafeTests` — child derivation (key + chain code), stealth payment round-trip, HMAC spend key derivation, rotation, disposal safety
 - 🔲 **1.6.7** `TransactionBlockTests` — block validity, capacity, hash chaining, lock behaviour
 - 🔲 **1.6.8** `DatabaseTests` — round-trip persist/restore for all 5 model types; key ordering correctness; batch atomicity
+- 🔲 **1.6.9** `HashProviderTests` — known-vector TX hash; block header hash determinism; state root sort-independence; empty account set guard
+- 🔲 **1.6.10** `MerkleTreeTests` — single element; even/odd lists; duplicate padding; empty list; invalid hash length rejection
+- 🔲 **1.6.11** `SignatureVerifierTests` — valid signature round-trip; wrong key returns false; tampered data returns false; malformed Base64 returns false; wrong length returns false
 
 ---
 
@@ -119,7 +126,7 @@
 - 🔲 **2.2.4** Nonce ordering check (sender nonce must equal account nonce + 1)
 - 🔲 **2.2.5** Fee validation — minimum 1 HYD enforced at service layer
 - 🔲 **2.2.6** Double-spend prevention via nonce reservation in mempool
-- 🔲 **2.2.7** Transaction status lifecycle orchestration (InitiatedBySender → PendingValidation → ConsensusReached → Settled)
+- 🔲 **2.2.7** Transaction status lifecycle orchestration
 - 🔲 **2.2.8** Transaction queries (by hash, by sender, by status, by block number)
 
 ---
@@ -142,8 +149,8 @@
 - 🔲 **3.2.2** Signature verification step (using `HYDRON.Cryptography.SignatureVerifier`)
 - 🔲 **3.2.3** Balance sufficiency re-check at validation time
 - 🔲 **3.2.4** Nonce ordering re-check at validation time
-- 🔲 **3.2.5** Consensus vote aggregation — monitor `RequiredSupermajorityValidationsCount`; trigger finalization when reached
-- 🔲 **3.2.6** First-validator veto gate — first validator's vote must be `Approved` before supermajority is counted
+- 🔲 **3.2.5** Consensus vote aggregation — monitor `RequiredSupermajorityValidationsCount`
+- 🔲 **3.2.6** First-validator veto gate
 - 🔲 **3.2.7** Auto-finalization when 66%+ approve; auto-rejection when majority reject
 
 ### 3.3 Validator Ranking
@@ -176,23 +183,22 @@
 - 🔲 **4.1.1** `TransactionBlockBuilder` — assembles 100 finalized transactions into a `TransactionBlock`
 - 🔲 **4.1.2** Merkle root computation via `HYDRON.Cryptography.MerkleTree`
 - 🔲 **4.1.3** Block hash computation via `HYDRON.Cryptography.HashProvider`
-- 🔲 **4.1.4** `IBlockRepository` read/write for TransactionBlocks
-- 🔲 **4.1.5** Genesis block factory (handles `previousHash = "0"×64` special case)
+- 🔲 **4.1.4** Genesis block factory (handles `previousHash = CryptoConstants.GenesisPreviousHash`)
 
 ### 4.2 StateBlock
 
 - 🔲 **4.2.1** `StateBlockBuilder` — assembles from 100 confirmed TransactionBlocks
-- 🔲 **4.2.2** State root = SHA-256 of all account state hashes (sorted-hash approach)
+- 🔲 **4.2.2** State root via `HashProvider.ComputeStateRoot`
 - 🔲 **4.2.3** Electricity price consensus: median of 100 TransactionBlock oracle snapshots (66%+ validator agreement)
 - 🔲 **4.2.4** `IBlockRepository` read/write for StateBlocks
 - 🔲 **4.2.5** Immutability enforcement: `IsImmutable = true` after 100-StateBlock depth
 
 ### 4.3 Block Finality
 
-- 🔲 **4.3.1** Finality depth tracker (counts confirmations since block was included)
-- 🔲 **4.3.2** Deterministic finality flag set at 66%+ supermajority of validators
-- 🔲 **4.3.3** State settlement — apply all TX balance changes to account state on StateBlock commit
-- 🔲 **4.3.4** Reorg window: blocks within 100-StateBlock depth can be challenged; beyond that are permanent
+- 🔲 **4.3.1** Finality depth tracker
+- 🔲 **4.3.2** Deterministic finality flag set at 66%+ supermajority
+- 🔲 **4.3.3** State settlement — apply all TX balance changes on StateBlock commit
+- 🔲 **4.3.4** Reorg window: 100-StateBlock depth
 
 ---
 
@@ -200,18 +206,18 @@
 
 ### 5.1 Reward Calculation
 
-- 🔲 **5.1.1** `RewardCalculator` service — deterministically computes `BlockReward` from block contents
-- 🔲 **5.1.2** Per-TX core reward: 1 HYA (100 atomos) per finalized transaction
-- 🔲 **5.1.3** Per-TransactionBlock reward: 1 HYB (10,000 atomos) split among block validators
-- 🔲 **5.1.4** Per-StateBlock reward: 1 HYG (100,000,000 atomos) split among state-block validators
+- 🔲 **5.1.1** `RewardCalculator` service
+- 🔲 **5.1.2** Per-TX core reward: 1 HYA (100 atomos)
+- 🔲 **5.1.3** Per-TransactionBlock reward: 1 HYB (10,000 atomos)
+- 🔲 **5.1.4** Per-StateBlock reward: 1 HYG (100,000,000 atomos)
 - 🔲 **5.1.5** Reward multiplier application based on validator reputation tier
-- 🔲 **5.1.6** Consistency check: sum of `ValidatorReward.TotalReward` must equal `BlockReward` totals (excluding fees)
+- 🔲 **5.1.6** Consistency check: sum of `ValidatorReward.TotalReward` = `BlockReward` totals (excl. fees)
 
 ### 5.2 Fee Handling
 
 - 🔲 **5.2.1** Fee collection from sender balance at transaction ingest
-- 🔲 **5.2.2** Fee distribution to first validator only (per protocol spec)
-- 🔲 **5.2.3** Minimum fee enforcement: 1 HYD (10^16 atomos) at service layer
+- 🔲 **5.2.2** Fee distribution to first validator only
+- 🔲 **5.2.3** Minimum fee enforcement: 1 HYD (10^16 atomos)
 
 ---
 
@@ -224,11 +230,11 @@
 - 🔲 **6.1.1** EIA Open Data API — US electricity prices (USD/kWh, monthly)
 - 🔲 **6.1.2** Eurostat — EU member-state electricity prices
 - 🔲 **6.1.3** IEA Data Explorer — OECD country prices
-- 🔲 **6.1.4** World Bank Population API — country population weights for weighted average
+- 🔲 **6.1.4** World Bank Population API — country population weights
 
 ### 6.2 Price Calculation Pipeline
 
-- 🔲 **6.2.1** Population-weighted global average USD/kWh from all sources
+- 🔲 **6.2.1** Population-weighted global average USD/kWh
 - 🔲 **6.2.2** Unit conversion chain: USD/kWh → USD/J → USD/eV
 - 🔲 **6.2.3** `atomos_usd_price = 13.6 eV × consensus_usd_per_eV`
 - 🔲 **6.2.4** Price update cadence: one consensus vote per StateBlock boundary
@@ -236,9 +242,9 @@
 ### 6.3 Oracle Consensus
 
 - 🔲 **6.3.1** Each validator independently fetches and computes the electricity price
-- 🔲 **6.3.2** Validators broadcast their price proposal; 66%+ agreement required
+- 🔲 **6.3.2** 66%+ validator agreement required
 - 🔲 **6.3.3** Accepted price embedded in each `TransactionBlock` as `ElectricityPriceAtomosPerEv`
-- 🔲 **6.3.4** Outlier rejection: proposals beyond ±20% of median are discarded
+- 🔲 **6.3.4** Outlier rejection: proposals beyond ±20% of median discarded
 
 ---
 
@@ -314,20 +320,24 @@
 
 ### 9.1 Unit Tests
 
-- 🔲 **9.1.1** `RewardCalculatorTests`
-- 🔲 **9.1.2** `MerkleTreeTests`
-- 🔲 **9.1.3** `HashProviderTests`
-- 🔲 **9.1.4** `SignatureVerifierTests`
-- 🔲 **9.1.5** `OraclePriceCalculationTests` (weighted average + unit conversion)
-- 🔲 **9.1.6** `ValidatorRankingTests`
-- 🔲 **9.1.7** `DatabaseLayerTests` — round-trip for all 5 model types; key ordering; batch atomicity
+- 🔲 **9.1.1** `AtomosTests`
+- 🔲 **9.1.2** `AccountTests`
+- 🔲 **9.1.3** `TransactionTests`
+- 🔲 **9.1.4** `ValidationTests`
+- 🔲 **9.1.5** `ValidatorTests`
+- 🔲 **9.1.6** `KeySafeTests`
+- 🔲 **9.1.7** `TransactionBlockTests`
+- 🔲 **9.1.8** `DatabaseLayerTests`
+- 🔲 **9.1.9** `HashProviderTests` — known-vector TX hash; block header hash determinism; state root sort-independence; empty account set guard
+- 🔲 **9.1.10** `MerkleTreeTests` — single element; even/odd lists; duplicate padding; empty list; invalid hash length rejection
+- 🔲 **9.1.11** `SignatureVerifierTests` — valid round-trip; wrong key; tampered data; malformed Base64; wrong length
 
 ### 9.2 Integration Tests
 
 - 🔲 **9.2.1** Account → Transaction ingest → mempool flow
 - 🔲 **9.2.2** Transaction → validator assignment → consensus → finalization flow
 - 🔲 **9.2.3** TransactionBlock assembly → StateBlock settlement → account state update
-- 🔲 **9.2.4** Reward distribution end-to-end (per-TX + per-block + fee)
+- 🔲 **9.2.4** Reward distribution end-to-end
 - 🔲 **9.2.5** Oracle price consensus round (mock data sources)
 
 ### 9.3 End-to-End / Simulation Tests
@@ -371,7 +381,7 @@
 |------|--------|
 | Data Models — `HYDRON.Models` (12 classes) | ✅ Complete |
 | Database Layer — `HYDRON.Database` | ✅ Complete |
-| Cryptography services — `HYDRON.Cryptography` | 🏗️ Stub only |
+| Cryptography — `HYDRON.Cryptography` | ✅ Complete |
 | Core bootstrapping & constants — `HYDRON.Core` | 🏗️ Stub only |
 | Validator services — `HYDRON.Validator` | 🏗️ Stub only |
 | Connectivity / Oracle — `HYDRON.Connectivity` | 🏗️ Stub only |
@@ -385,26 +395,22 @@
 
 ## Immediate Next Priorities
 
-### Step 1 — `HYDRON.Cryptography` (next)
-1. `HashProvider` — SHA-256 canonical hasher; deterministic byte serialization for transactions and block headers
-2. `MerkleTree` — binary Merkle builder; input = ordered list of TX hashes; output = root hash consumed by `TransactionBlock.Seal()`
-3. `SignatureVerifier` — Ed25519 verify wrapper (service-side, decoupled from `KeySafe`; depends on `NSec.Cryptography`)
-4. `CryptoConstants` — Ed25519 key sizes, SHA-256 output length, genesis `previousHash` sentinel value
+### Step 2 — `SystemConstants` in `HYDRON.Core` (next)
+1. Reward amounts as `Atomos`: `TxReward = 1 HYA`, `TransactionBlockReward = 1 HYB`, `StateBlockReward = 1 HYG`
+2. Block capacities: `TransactionsPerBlock = 100`, `BlocksPerStateBlock = 100`
+3. Consensus threshold: `SupermajorityNumerator = 2`, `SupermajorityDenominator = 3`
+4. Minimum fee: `MinimumFee = 1 HYD`
+5. Immutability window: `ImmutabilityDepth = 100` (StateBlocks)
+6. Physics constant: `HydrogenIonizationEnergyEv = 13.6m` (decimal)
+7. `InternalsVisibleTo` grant from `HYDRON.Core` to `HYDRON.Tests`
 
-### Step 2 — `SystemConstants` in `HYDRON.Core`
-5. Reward amounts: 1 HYA/TX, 1 HYB/TransactionBlock, 1 HYG/StateBlock
-6. Block capacities: 100 TX per TransactionBlock, 100 TransactionBlocks per StateBlock
-7. Consensus threshold: 2/3 supermajority
-8. Minimum fee: 1 HYD (10^16 atomos)
-9. Immutability window: 100 StateBlocks
-10. Physics constant: 13.6 eV (H-1 ionization energy)
-
-### Step 3 — Unit Tests for completed layers
-11. `DatabaseLayerTests` — round-trip persist/restore for Account, Validator, Transaction, TransactionBlock, StateBlock; verify 256-bit key ordering; verify batch atomicity
-12. Model tests (1.6.1–1.6.7) — now unblocked since `Restore()` factories are in place
+### Step 3 — Unit Tests (`HYDRON.Tests`)
+8. Model tests (1.6.1–1.6.7) — all `Restore()` factories are in place
+9. Cryptography tests (1.6.9–1.6.11) — `HashProvider`, `MerkleTree`, `SignatureVerifier`
+10. Database tests (1.6.8) — round-trip for all 5 types; key ordering; batch atomicity
 
 ### Step 4 — `HYDRON.Core` service layer
-13. `AccountService` — create, load, save, balance query
-14. `TransactionBuilder` + ingest pipeline (sig verify, balance check, nonce check, fee guard)
-15. `RewardCalculator` — deterministic reward computation from block contents
-16. `HydronEngine` — main bootstrap wiring DB + crypto + services
+11. `AccountService` — create, load, save, balance query
+12. `TransactionBuilder` + ingest pipeline (sig verify, balance check, nonce check, fee guard)
+13. `RewardCalculator` — deterministic reward computation from block contents
+14. `HydronEngine` — main bootstrap wiring DB + crypto + services
