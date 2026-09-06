@@ -46,16 +46,6 @@ namespace HYDRON.Models
         public IReadOnlyList<Guid> RegisteredValidationIds => _registeredValidationIds.AsReadOnly();
         public IReadOnlyList<Guid> UnregisteredValidationIds => _unregisteredValidationIds.AsReadOnly();
 
-        public int RequiredSupermajorityValidationsCount
-        {
-            get
-            {
-                int count = _frozenValidatorCount ?? _assignedValidators.Count;
-                if (count == 0) return 1;
-                return (int)Math.Ceiling(count * 2.0 / 3.0);
-            }
-        }
-
         private static readonly Dictionary<TransactionStatus, HashSet<TransactionStatus>> ValidTransitions = new()
         {
             [TransactionStatus.InitiatedBySender] =

@@ -14,6 +14,8 @@ namespace HYDRON.Models
         private Atomos _balance = Atomos.Zero;
         private readonly Lock _balanceLock = new();
 
+        private const int MaxHandleLength = 1000;
+
         private protected Account(
             string address, string publicKey, string stealthPublicKey,
             string? handle, Atomos balance, BigInteger nonce)
@@ -104,8 +106,6 @@ namespace HYDRON.Models
                 InvalidateStateHash();
             }
         }
-
-        private const int MaxHandleLength = 1000;
 
         public void UpdateHandle(string? newHandle)
         {

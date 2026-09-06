@@ -11,7 +11,7 @@ namespace HYDRON.Models
         private readonly List<Transaction> _transactions = [];
         public IReadOnlyList<Transaction> Transactions => _transactions.AsReadOnly();
         private readonly List<string> _restoredTransactionHashes = [];
-        IReadOnlyList<string> RestoredTransactionHashes => _restoredTransactionHashes.AsReadOnly();
+        private IReadOnlyList<string> RestoredTransactionHashes => _restoredTransactionHashes.AsReadOnly();
 
         public int TransactionCount => _transactions.Count;
 
